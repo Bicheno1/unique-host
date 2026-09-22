@@ -1,0 +1,27 @@
+# Python / Virtual Environments
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Gradio & Temporary Output Files
+.gradio/
+character_output.json
+session_snapshot.json
+*_character.json
+!fullcompiler/characters/*.json
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
