@@ -34,6 +34,8 @@ What was measured, using Delia v3, Joaquin v1 and a test character:
 | **Spontaneous recall** (`evoked`) | **Dormant** | Fires on unmet needs, not on threat as the paper describes; searches long-term memory only, with placeholder word lists that do not include `cage`/`road`. 0 recalls in 60 idle turns. The `evoked` list in the state is never filled (bug). |
 | **Memory shown in the text** | **Only when asked** | Since 2026-09-20 the character recalls on request and checks claims against memory (see "Memory recall and claims" below). It never volunteers a memory. |
 
+**Danger detection can be outweighed by a recent positive stretch.** Measured 2026-09-22: V (viability push) can climb to more than double I (inviability) even during an active threat (a dragon attack), if the character was coming from a strongly positive moment right before — so the engine doesn't always react to a sudden threat. This is one of the things a new user is most likely to notice if not warned about it in advance.
+
 Why a character still reacts differently later in a session: **plasticity** (each word's valence
 drifts by about 0.25 per exposure, because the Opening rule `dist_mental < 30` is almost always
 true), not stored memories. In one test, "a cage" after a
@@ -84,6 +86,7 @@ Limits:
 - **Most lexicon words carry no emotional load.** Only ~67 hand-written concepts plus the
   words reached by your questionnaire answers push anything. First impressions can look off:
   a bandit with a drawn blade got "We welcome the bandit. Gladly." for one character.
+- **Danger/benefit vocabulary coverage is limited** (~120 hand-curated concepts plus ~150 words in `db/db_danger.py`); uncommon words can register nothing at all (e.g. "devour" currently has no effect).
 - **One slider covers many words.** `people_opinion` also drives `bandit`, `villain`, `hero`, so a
   friendly-to-people character welcomes a bandit.
 - **Ties between axes fall into "benefit"** (first axis wins). With flat answers every stimulus
@@ -144,7 +147,7 @@ Limits:
   was served and its functions called directly; it was not clicked through in a browser.
 - License: PolyForm Noncommercial 1.0.0 (unmodified text) with a `NOTICE`. The attribution terms
   of WordNet and `wordfreq`, which the lexicon was built from, were not reviewed.
-- The reporting channel in the README is still a placeholder.
+- The reporting channel in the README now points to GitHub Issues and email.
 - The interface has a speaker selector (Narrator / You / any name); the default is Narrator. The engine reacts to a named speaker by naming them as the target of its reply; a speaker is not a second host (one host per process).
 
 ## 7. Tests
