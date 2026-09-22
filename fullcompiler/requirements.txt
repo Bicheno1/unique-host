@@ -1,0 +1,3 @@
+# The compiler (questionnaire -> character.json) has no external dependencies for 
+# normal use (build_character_json). Only tools/expand_category.py 
+# (dev tool, not used at runtime) requires: nltk
