@@ -81,6 +81,8 @@ python displayer/app.py
 
 ## What it looks like
 
+![Unique Host chat interface — a roleplay conversation between Joaquín and Delia, with the Emotion / Text / Action input boxes below](docs/images/chat-screenshot.png)
+
 A real, unedited run with `fullcompiler/characters/delia_adventurer_v4.json`, playing as Joaquin, in the engine's
 one-line syntax (in the app you would type these into the three boxes; wording varies between runs; it is a closed
 phrase bank, not a language model):
