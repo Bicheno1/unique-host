@@ -1,15 +1,3 @@
----
-title: Unique Host
-emoji: 🧠
-colorFrom: indigo
-colorTo: pink
-sdk: gradio
-sdk_version: 5.34.0
-app_file: displayer/app.py
-pinned: false
-license: other
----
-
 # Unique Host
 
 > **Work in progress — v0.2.** Early experimental release; expect bugs. English only.
