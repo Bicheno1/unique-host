@@ -121,6 +121,29 @@ def _inflections(word):
     return sorted(f for f in forms if len(f) > 2 and f.isalpha())
 
 
+# Hand-authored nouns of db_concepts.py that carry a danger push but are NOT in DANGER_WORDS. Their inflected
+# forms ("bandits", "ghosts", "shadows", "corpses") used to carry nothing, because only DANGER_WORDS were
+# inflected. Nouns/plurals only: verb forms of hand-authored words (run/hide -> runs, ran, hiding) are left out on
+# purpose, they are far more common in harmless text ("she runs a shop").
+HAND_AUTHORED_INFLECT = ["bandit", "ghost", "shadow", "corpse", "animal"]
+
+
+def _spread_inflections(concepts, word, node, template=None):
+    """Gives every inflected form of `word` a copy of `node`'s push, unless the form already carries a
+    hand-authored push or is a grammar word. A lexicon-promoted junk entry (\"burns\" = the person Burns) is
+    replaced. `template` (or None for hand-authored nodes) only labels the copy."""
+    for form in _inflections(word):
+        other = concepts.get(form)
+        if other is not None and (other.get("related") or other.get("type") == "language"):
+            continue
+        copy_ = {**node, "synonyms": [form], "related": _copy(node["related"]), "inflection_of": word}
+        if template:
+            copy_["intrinsic_danger"] = template
+        else:
+            copy_.pop("intrinsic_danger", None)
+        concepts[form] = copy_
+
+
 def apply_danger(concepts):
     """Adds the intrinsic danger tags to `concepts` (the CONCEPTS dict). Idempotent."""
     from db.db_lexicon import LEXICON
@@ -132,7 +155,11 @@ def apply_danger(concepts):
         for word in words:
             node = concepts.get(word)
             if node is not None and node.get("related"):
-                continue                                # hand-authored: never overwritten
+                # hand-authored: its own push is never overwritten, but its inflected forms must still
+                # carry it (before, \"screams\" / \"villains\" had nothing)
+                if not node.get("inflection_of"):
+                    _spread_inflections(concepts, word, node)
+                continue
             if node is None:
                 entry = LEXICON.get(word)
                 if entry:
@@ -147,11 +174,8 @@ def apply_danger(concepts):
                 concepts[word] = node
             node["related"] = _copy(TEMPLATES[template])
             node["intrinsic_danger"] = template
-            # inflected forms get the same node (a copy), unless they already carry a hand-authored
-            # push or are grammar words; a lexicon-promoted junk entry ("burns" = the person Burns) is replaced
-            for form in _inflections(word):
-                other = concepts.get(form)
-                if other is not None and (other.get("related") or other.get("type") == "language"):
-                    continue
-                concepts[form] = {**node, "synonyms": [form], "related": _copy(TEMPLATES[template]),
-                                  "intrinsic_danger": template, "inflection_of": word}
+            _spread_inflections(concepts, word, node, template)
+    for word in HAND_AUTHORED_INFLECT:
+        node = concepts.get(word)
+        if node is not None and node.get("related") and not node.get("inflection_of"):
+            _spread_inflections(concepts, word, node)

@@ -1,12 +1,12 @@
 # app.py — UNIQUE HOST (Gradio interface)
 #
-# TAB 1 — Character Creator: questionnaire -> character.json
+# TAB 1 — Load & Chat: load character.json -> roleplay chat (Delia/Joaquin load with one
+#          click, no file needed) -> export / resume a session snapshot
+# TAB 2 — Character Creator: questionnaire -> character.json
 #          (+ a "looks incomplete" report before you use it)
-# TAB 2 — Load & Chat: load character.json -> roleplay chat
-#          -> export / resume a session snapshot
 #
 # This file has NO engine or questionnaire logic of its own. It only calls
-# `fullcompiler` (Tab 1) and `fullsystem` (Tab 2).
+# `fullsystem` (Tab 1) and `fullcompiler` (Tab 2).
 #
 # Messages: three boxes (Emotion / Text / Action). The engine's own syntax, used on its output and
 # still accepted in the Text box, is:
@@ -18,6 +18,22 @@ import os
 import re
 import sys
 import tempfile
+
+# ── Hugging Face Spaces / ZeroGPU compatibility shim ──────────────────────
+# On the free "ZeroGPU" hardware tier, Spaces refuses to start unless the code
+# contains at least one function decorated with @spaces.GPU — even if it is
+# never called. This app is pure CPU (no torch, no CUDA) and never needs a
+# GPU; this dummy function exists ONLY to satisfy that startup check. It is
+# a no-op everywhere else: `spaces` isn't installed for a normal local run,
+# so this block is skipped there without breaking anything.
+try:
+    import spaces
+
+    @spaces.GPU(duration=1)
+    def _zerogpu_startup_check():  # never called — see comment above
+        return None
+except ImportError:
+    pass
 
 # ── UNIQUE HOST is split into 3 sibling packages:
 #      displayer/   (this folder, the Gradio interface)
@@ -48,9 +64,24 @@ WIP_NOTICE = (
 _OUT_DIR = tempfile.mkdtemp(prefix="unique_host_")
 
 
+def _ensure_nltk_data():
+    """Downloads the WordNet corpora the engine needs (contradiction_rules.py,
+    construction_matcher.py) if they are not already present. A plain `pip install -r
+    requirements.txt` — which is all Hugging Face Spaces runs before starting the app —
+    installs the nltk PACKAGE but not its corpus DATA, so this has to happen at start-up
+    instead. Safe to call every time: it's a no-op once the data is cached."""
+    import nltk
+    for pkg in ("wordnet", "omw-1.4"):
+        try:
+            nltk.data.find(f"corpora/{pkg}")
+        except LookupError:
+            nltk.download(pkg, quiet=True)
+
+
 def warm_up():
     """Loads the spaCy model once at start-up (the engine loads it lazily on the first message,
     which otherwise makes the first reply of a session slow: ~0.4 s warm, several seconds cold)."""
+    _ensure_nltk_data()
     from core.construction_matcher import get_nlp
     get_nlp()("warm up")
 
@@ -130,6 +161,24 @@ def load_character_file(file_obj):
     except Exception as e:  # bad JSON, wrong file, old schema...
         return None, f"Could not load that file: {type(e).__name__}: {e}", []
     return ccm, f"Loaded character: {identity.get('name', 'Unnamed')}", []
+
+
+# Bundled example characters (already shipped under fullcompiler/characters/) that can be
+# loaded with one click, with no file to download and re-upload first.
+_SAMPLE_CHARACTERS = {
+    "Delia (adventurer)": os.path.join(_BASE, "..", "fullcompiler", "characters", "delia_adventurer_v4.json"),
+    "Joaquin (adventurer)": os.path.join(_BASE, "..", "fullcompiler", "characters", "joaquin_adventurer_v2.json"),
+}
+
+
+def load_sample_character(label):
+    path = _SAMPLE_CHARACTERS.get(label)
+    if not path or not os.path.exists(path):
+        return None, f"Sample character not found: {label}", []
+    with open(path, "r", encoding="utf-8") as f:
+        character_data = json.load(f)
+    ccm, identity = inject_character(character_data)
+    return ccm, f"Loaded sample character: {identity.get('name', 'Unnamed')}", []
 
 
 def load_session_file(ccm, file_obj):
@@ -322,29 +371,15 @@ def build_demo():
         gr.Markdown("# UNIQUE HOST — a roleplay character that remembers")
         gr.Markdown(WIP_NOTICE)
 
-        with gr.Tab("1. Character Creator"):
-            gr.Markdown(
-                "Answer the questionnaire, then generate a `character.json`. "
-                "Download it and load it in the **Load & Chat** tab. "
-                "Sliders you leave at 5 count as *neutral* — the more you answer, "
-                "the more your character reacts as themselves."
-            )
-            question_inputs = _build_questionnaire_inputs()
-            with gr.Row():
-                generate_btn = gr.Button("Generate character.json", variant="primary", scale=3)
-                # Disabled until a character is generated; generate_character() enables it and
-                # points it at the new file. Clicking it downloads the full character.json.
-                save_btn = gr.DownloadButton("💾 Save character.json", interactive=False, scale=1)
-            completeness = gr.Textbox(label="Check before you play", interactive=False, lines=4)
-            json_preview = _preview_code()
-
-            generate_btn.click(fn=generate_character, inputs=question_inputs,
-                               outputs=[completeness, json_preview, save_btn])
-
-        with gr.Tab("2. Load & Chat"):
+        with gr.Tab("1. Load & Chat"):
             ccm_state = gr.State(None)
 
-            gr.Markdown("### Load a character")
+            gr.Markdown("### Quick start — try a ready-made character (loads instantly, nothing to download)")
+            with gr.Row():
+                delia_btn = gr.Button("▶ Chat with Delia", variant="primary")
+                joaquin_btn = gr.Button("▶ Chat with Joaquin")
+
+            gr.Markdown("### ...or load your own character")
             with gr.Row():
                 char_file_input = gr.File(label="character.json")
                 load_char_btn = gr.Button("Load character", variant="primary")
@@ -385,6 +420,10 @@ def build_demo():
             export_btn = gr.Button("Export session snapshot")
             export_file = gr.File(label="session_snapshot.json")
 
+            delia_btn.click(fn=lambda: load_sample_character("Delia (adventurer)"),
+                           outputs=[ccm_state, load_status, chatbot])
+            joaquin_btn.click(fn=lambda: load_sample_character("Joaquin (adventurer)"),
+                             outputs=[ccm_state, load_status, chatbot])
             load_char_btn.click(fn=load_character_file, inputs=[char_file_input],
                                 outputs=[ccm_state, load_status, chatbot])
             load_session_btn.click(fn=load_session_file, inputs=[ccm_state, session_file_input],
@@ -396,6 +435,31 @@ def build_demo():
                 box.submit(fn=chat_step_fields, inputs=chat_inputs, outputs=chat_outputs)
             export_btn.click(fn=export_session_file, inputs=[ccm_state],
                              outputs=[export_file, load_status])
+
+            # Auto-loads Delia the moment the page opens, so a first-time visitor lands on a
+            # working chat instead of an empty form. They can still switch to Joaquin, upload
+            # their own character, or build one in Tab 2 whenever they want.
+            demo.load(fn=lambda: load_sample_character("Delia (adventurer)"),
+                     outputs=[ccm_state, load_status, chatbot])
+
+        with gr.Tab("2. Character Creator"):
+            gr.Markdown(
+                "Answer the questionnaire, then generate a `character.json`. "
+                "Download it and load it in the **Load & Chat** tab. "
+                "Sliders you leave at 5 count as *neutral* — the more you answer, "
+                "the more your character reacts as themselves."
+            )
+            question_inputs = _build_questionnaire_inputs()
+            with gr.Row():
+                generate_btn = gr.Button("Generate character.json", variant="primary", scale=3)
+                # Disabled until a character is generated; generate_character() enables it and
+                # points it at the new file. Clicking it downloads the full character.json.
+                save_btn = gr.DownloadButton("💾 Save character.json", interactive=False, scale=1)
+            completeness = gr.Textbox(label="Check before you play", interactive=False, lines=4)
+            json_preview = _preview_code()
+
+            generate_btn.click(fn=generate_character, inputs=question_inputs,
+                               outputs=[completeness, json_preview, save_btn])
     return demo
 
 

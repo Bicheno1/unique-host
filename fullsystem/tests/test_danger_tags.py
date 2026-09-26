@@ -116,6 +116,33 @@ def test_no_false_events_in_60_calm_turns_for_both_characters():
         assert not _threat_events(ccm), (f, [e["concepts"] for e in _threat_events(ccm)])
 
 
+def test_inflections_of_hand_authored_concepts_carry_the_push():
+    """bandit / ghost / shadow / corpse / animal (hand-authored) and villain / scream (hand-authored AND in
+    DANGER_WORDS) used to tag only the bare form: "bandits" or "screamed" pushed nothing."""
+    _pristine()
+    for base, forms in {"bandit": ["bandits"], "ghost": ["ghosts"], "shadow": ["shadows"], "corpse": ["corpses"],
+                        "animal": ["animals"], "villain": ["villains"], "scream": ["screams", "screamed", "screaming"]}.items():
+        for f in forms:
+            assert CONCEPTS[f].get("related") == CONCEPTS[base]["related"], (base, f)
+            assert CONCEPTS[f].get("inflection_of") == base, (base, f)
+
+
+def test_plural_of_a_hand_authored_word_pushes_inviability():
+    _pristine()
+    from core.pre_input import pre_input_somatic
+    # ("screams" is left out: "scream" itself enters through the auditory pipeline, not this one)
+    for w in ("bandits", "ghosts", "corpses", "villains"):
+        s = pre_input_somatic([w])
+        assert s and s["I"] > s["V"], (w, s)
+
+
+def test_verb_forms_of_hand_authored_verbs_stay_untagged():
+    """run / hide are hand-authored danger verbs, but "she runs a shop" must not become a threat."""
+    _pristine()
+    for w in ("runs", "running", "ran", "hides", "hiding", "birds"):
+        assert not CONCEPTS.get(w, {}).get("related"), w
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0

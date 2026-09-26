@@ -18,11 +18,14 @@ import db.db_concepts as db_concepts
 import db.db_somatic as db_somatic
 import db.db_mental as db_mental
 import systems.memory_system as memory_system
+import systems.core_system as core_system
+import motors.internal_somatic as internal_somatic
 
 
 # ── Pristine copy of everything inject_character() mutates ───────────
 # inject_character() writes into MODULE-LEVEL dicts (CONCEPTS, the tag
-# tables, CORE_RULES, memory thresholds). Without a reset, loading a second
+# tables, CORE_RULES, memory thresholds) and the engine itself keeps live state
+# at module level (STAT_DATABASE vitals, internal_somatic._threat_state). Without a reset, loading a second
 # character in the same process (Gradio: load Delia, then load Joaquin)
 # would leave the first one's data mixed into the second. So the first call
 # takes a snapshot of the untouched state and every call restores it first.
@@ -41,6 +44,10 @@ def _snapshot_baseline():
             "core_rules": copy.deepcopy(core_identity.CORE_RULES),
             "mental_high": memory_system.HIGH_MENTAL_THRESHOLD,
             "somatic_high": memory_system.HIGH_SOMATIC_THRESHOLD,
+            # live vitals (heart rate, energy, temperature...) and the somatic threat tracker are
+            # module-level too: without them a second character inherits the first one's body state
+            "stat_database": copy.deepcopy(core_system.STAT_DATABASE),
+            "threat_state": copy.deepcopy(internal_somatic._threat_state),
         }
 
 
@@ -49,7 +56,9 @@ def _restore_baseline():
     for target, key in ((db_concepts.CONCEPTS, "concepts"),
                         (db_somatic.TAG_VALUES_SOMATIC, "tags_somatic"),
                         (db_mental.TAG_VALUES_MENTAL, "tags_mental"),
-                        (core_identity.CORE_RULES, "core_rules")):
+                        (core_identity.CORE_RULES, "core_rules"),
+                        (core_system.STAT_DATABASE, "stat_database"),
+                        (internal_somatic._threat_state, "threat_state")):
         target.clear()
         target.update(copy.deepcopy(b[key]))
     memory_system.HIGH_MENTAL_THRESHOLD = b["mental_high"]

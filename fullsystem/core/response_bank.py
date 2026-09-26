@@ -283,6 +283,15 @@ def render_from_bank(raw_mode: str, mode_phrase: str, subject: str, pronoun: str
     subject = subject or "that"
     if subject.lower() == "user":     # the "user" speaker is the one playing: they are addressed as "you"
         subject = "you"
+    # 2026-09-26 (author's report): "accept" reads as a personal/social
+    # response ("we welcome {subject}", "we say yes to {subject}") --
+    # fine for "the bandit" or "you", absurd for a place or a plan ("we
+    # accept the market"). Scoped to this one mode only: elsewhere a
+    # literal object subject is normal ("watching the noise" is fine),
+    # see core/topic_target.py's is_non_biological_subject docstring.
+    if raw_mode == "accept":
+        from core.topic_target import to_display_subject
+        subject = to_display_subject(subject)
     return template.format(
         subject=subject,
         subject_cap=subject[:1].upper() + subject[1:],

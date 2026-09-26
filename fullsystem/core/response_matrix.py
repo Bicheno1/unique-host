@@ -388,7 +388,17 @@ def select_axis_response(axis: str, category: str, character_name: str = None,
     # capitalization) instead of being read as a common noun.
     known_names = {n.lower(): n for n in (character_name, forced_focus, *(extra_known_names or ())) if n}
     parsed = analyze_input(raw_text, character_name, known_names) if raw_text else {"subject": None, "constructions": []}
-    subject = forced_focus or parsed["subject"] or "that"
+    # WHO/WHAT the reply is about (2026-09-23): the TOPIC of the input when
+    # there is a clear one, the speaker otherwise -- see core/topic_target.py.
+    # Decided once here: the sentence AND the action line both read it.
+    # Safety net: if the new layer ever fails on an odd input, fall back to
+    # the previous rule (speaker pinned, else parsed subject) -- never crash a turn.
+    try:
+        from core.topic_target import pick_target
+        subject, target_source = pick_target(parsed, forced_focus, character_name)
+    except Exception:
+        subject = forced_focus or parsed.get("subject") or "that"
+        target_source = "speaker" if forced_focus else "text"
 
     sentence = None
     # Fix: make_what_question/make_why_question
@@ -408,6 +418,7 @@ def select_axis_response(axis: str, category: str, character_name: str = None,
     # scene description instead of forcing a broken reflection.
     if verb == "investigate" and raw_text and forced_focus is not None:
         sentence = make_what_question(raw_text) or make_why_question(raw_text)
+    reflected = bool(sentence)   # already a question built from the input: no frame on top
 
     # bank of 5-6 variants per mode with profile-based selection
     # (core/response_bank.py). profile_gains = gains of the dominant engine,
@@ -431,6 +442,34 @@ def select_axis_response(axis: str, category: str, character_name: str = None,
         sentence = template.format(pronoun=pronoun, pronoun_lower=pronoun_lower,
                                     verb=verb_phrase(verb), focus=subject)
 
+    # CONSTRUCTION FRAME (2026-09-23): the grammatical construction of the
+    # INPUT shapes the form of the reply (question -> answers/deflects,
+    # order -> complies/refuses, "If X, ..." -> built around X, "X is
+    # [adj]" -> picks up the adjective...). The core sentence above (what
+    # the winning MODE does) is never replaced, only framed -- see
+    # core/construction_frames.py for why the 2026-09-10 tone-mismatch
+    # problem cannot come back (frames are keyed by the mode's stance).
+    core_sentence = sentence
+    frame_family = None
+    if sentence and not reflected and parsed.get("doc") is not None:
+        try:
+            from core.construction_frames import apply_frame
+            sentence, frame_family = apply_frame(
+                sentence, verb, parsed["doc"], parsed["constructions"],
+                gains=profile_gains, state=engine_state,
+                memory=variant_memory, rng=rng, subject=subject)
+        except Exception:
+            sentence, frame_family = core_sentence, None   # core alone, as before frames existed
+
+    # LOSS SAFETY NET (v0.2, core/loss_safety_net.py): "attack"/"accept" rendered literally against a
+    # feeling or a just-destroyed/stolen thing reads as nonsense, not personality ("we attack the grief").
+    # Applied last, after the bank/template/frame chain above, so it is the final word regardless of which
+    # of those produced `sentence` -- see that module's docstring for exactly what this does and does not
+    # fix (it does not change `verb`/`axis`/the emotion label; only this turn's sentence).
+    from core.loss_safety_net import applies as _loss_applies, fallback_sentence as _loss_sentence
+    if _loss_applies(verb, raw_text, subject):
+        sentence = _loss_sentence(subject, rng=rng)
+
     return {
         "axis": axis,
         "category": category,
@@ -438,6 +477,9 @@ def select_axis_response(axis: str, category: str, character_name: str = None,
         "pronoun": pronoun,
         "social_positioning": positioning["name"],
         "subject": subject,
+        "target_source": target_source,
         "constructions_matched": parsed["constructions"],
+        "core_sentence": core_sentence,
+        "frame_family": frame_family,
         "sentence": sentence,
     }

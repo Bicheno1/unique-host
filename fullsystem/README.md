@@ -17,7 +17,9 @@ fullsystem/
 ├── systems/       ← memory, chemistry, vitality, plasticity, mental state
 ├── layers/        ← emotion, muscle tone, processing mode
 ├── core/          ← marker parser, response matrix (16 cells), phrase bank,
-│                    construction_matcher (NLP/spaCy)
+│                    construction_matcher (NLP/spaCy),
+│                    construction_frames (grammar of the input -> shape of the reply),
+│                    topic_target (what the reply is about: topic first, speaker second)
 ├── output/        ← final sentence construction
 ├── db/            ← ALL the engine's databases (concepts, lexicon,
 │                    somatic/mental axes, sounds, etc.)
@@ -74,7 +76,11 @@ python agent.py --demo   # runs a demo with predefined inputs
 python tests/test_lexicon_homonyms.py
 python tests/test_contradiction.py
 python tests/test_response_bank.py
+python tests/test_construction_frames.py
+python tests/test_topic_target.py
+python tests/test_robustness.py
 ```
+(`tests/` holds more suites; the root README lists them all.)
 
 ## Runtime dependencies (not only for tools/)
 

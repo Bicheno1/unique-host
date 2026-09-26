@@ -103,16 +103,12 @@ def test_names_are_not_seeded_by_default():
     assert not any(n in c["concepts_seed"] for n in ("angelo", "tobi", "juan", "julia"))
 
 def test_delia_golden_and_extras():
-    """Delia's answers compile EXACTLY to the saved v3, and keep her v2 identity."""
+    """Delia's answers compile EXACTLY to the saved v4 character."""
     import json, os
     here = os.path.dirname(os.path.abspath(__file__))
-    answers = json.load(open(os.path.join(here, "characters", "delia_answers.json"), encoding="utf-8"))
-    v3 = json.load(open(os.path.join(here, "characters", "delia_adventurer_v3.json"), encoding="utf-8"))
-    v2 = json.load(open(os.path.join(here, "characters", "delia_adventurer_v2.json"), encoding="utf-8"))
-    assert json.loads(json.dumps(build_character_json(answers))) == v3
-    assert v3["core_identity_rules"] == v2["core_identity_rules"]       # parents, pet, custom_friend, fear, comfort
-    for k in ("identity", "base_state", "category_bias", "chemical_gains", "saturation_thresholds"):
-        assert v3[k] == v2[k], k
+    answers = json.load(open(os.path.join(here, "characters", "delia_answers_v4.json"), encoding="utf-8"))
+    v4 = json.load(open(os.path.join(here, "characters", "delia_adventurer_v4.json"), encoding="utf-8"))
+    assert json.loads(json.dumps(build_character_json(answers))) == v4
 
 def test_family_and_friend_fields_only_when_given():
     c = build_character_json({})
@@ -127,8 +123,8 @@ def test_joaquin_golden_all_questions_answered():
     import json, os
     from questionnaire.completeness import check_completeness
     here = os.path.dirname(os.path.abspath(__file__))
-    answers = json.load(open(os.path.join(here, "characters", "joaquin_answers.json"), encoding="utf-8"))
-    saved = json.load(open(os.path.join(here, "characters", "joaquin_adventurer_v1.json"), encoding="utf-8"))
+    answers = json.load(open(os.path.join(here, "characters", "joaquin_answers_v2.json"), encoding="utf-8"))
+    saved = json.load(open(os.path.join(here, "characters", "joaquin_adventurer_v2.json"), encoding="utf-8"))
     assert check_completeness(answers)["ok"]                      # all 166 questions answered, no phrases
     assert json.loads(json.dumps(build_character_json(answers))) == saved
     assert saved["core_identity_rules"]["custom_friend"]["value"]["name"] == "Delia"

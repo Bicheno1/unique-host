@@ -134,6 +134,16 @@ def _all_events(ccm):
                 if k not in seen:
                     seen.add(k)
                     out.append(("short", e))
+        # The window itself: what was said in this scene and has not been flushed to short term yet.
+        # Turns of the CURRENT cycle are left out, or "Do you remember the city?" would remember itself.
+        if hasattr(mem, "window_turns"):
+            ev = mem.context_event(mem.window_turns(before_cycle=mem._cycle))
+            if ev:
+                ev = {**ev, "open": True}
+                k = (tuple(ev["concepts"]), ev["closed_at"], ev["event_class"], "short")
+                if k not in seen:
+                    seen.add(k)
+                    out.append(("short", ev))
         for tier, events in (("short", mem.short_term), ("medium", mem.medium_term),
                              ("long", mem.long_term)):
             for e in events:
@@ -143,6 +153,11 @@ def _all_events(ccm):
                 seen.add(k)
                 out.append((tier, e))
     return out
+
+
+def _ev_concepts(e):
+    """Everything an event can be asked about: its 5-concept key plus, for context chunks, all they held."""
+    return set(e.get("concepts", [])) | set(e.get("all_concepts", []))
 
 
 def _significance(e):
@@ -174,20 +189,29 @@ def _tokens(raw_text):
 
 def find_events(ccm, wanted_concepts, time_bucket):
     """Events matching ANY wanted concept (or all events if none wanted), ordered
-    by: tier the question points at, then number of matching concepts, then
-    significance. Returns a list of (tier, event)."""
+    by: tier the question points at, then whether it is a real tracked episode (threat/arc) vs a plain
+    context chunk, then number of matching concepts, then significance. Returns a list of (tier, event).
+
+    The context-chunk/tier tie-break exists because a context chunk can span several turns of MIXED
+    sign (an ambush, then relief when the attacker flees), and _event_valence() reads only its single
+    biggest-magnitude turn -- so its valence can come out reversed from what the concept's own dedicated
+    threat/arc episode correctly recorded. A context chunk with a big peak must never outrank a real
+    episode that covers the same concept just because its raw numbers are larger; it is a fallback for
+    concepts that have NO dedicated episode (going/market), not a competing answer for ones that do.
+    """
     order = _TIER_ORDER[time_bucket]
     want = set(wanted_concepts)
     scored = []
     for tier, e in _all_events(ccm):
-        overlap = len(want & set(e.get("concepts", []))) if want else 0
+        overlap = len(want & _ev_concepts(e)) if want else 0
         if want and not overlap:
             continue
+        is_context = 1 if e.get("source") == "context" else 0
         # a closer closed_at (cycle) is a tiny tie-breaker: newer first
         recency = (e.get("closed_at") or 0) / 1e6
-        scored.append((order.index(tier), -overlap, -(_significance(e) + recency), tier, e))
-    scored.sort(key=lambda x: x[:3])
-    return [(t, e) for _, _, _, t, e in scored]
+        scored.append((order.index(tier), is_context, -overlap, -(_significance(e) + recency), tier, e))
+    scored.sort(key=lambda x: x[:4])
+    return [(t, e) for _, _, _, _, t, e in scored]
 
 
 # ── 3. TEMPLATES (closed repertoire, draft wording) ──────────────────────────
@@ -290,7 +314,11 @@ def _describe(ccm, tier, event, subject):
     # seeded events (core fear/comfort) have no real time -> always "a long time ago"
     when = " " + (_WHEN["long"] if event.get("closed_at") is None else _WHEN[tier])
     user = present_name(ccm)
-    others = [c for c in event.get("concepts", []) if c != subject and c != user and c not in _QUESTION_WORDS]
+    from db.db_concepts import CONCEPTS as _C
+    # an action ("going") is not a second topic: "the city, and the going" reads wrong
+    others = [c for c in list(event.get("concepts", [])) + list(event.get("all_concepts", []))
+              if c != subject and c != user and c not in _QUESTION_WORDS and c not in _MOTION
+              and _C.get(c, {}).get("type") != "action"]
     fmt = {"np": np_, "Np": _cap(np_), "when": when, "feeling": _feeling(ccm, event)}
     if others:
         fmt["other"] = _noun_phrase(ccm, others[0])
@@ -344,6 +372,86 @@ def _about_user(ccm):
 
 # ── 4. PUBLIC ENTRY POINT ────────────────────────────────────────────────────
 
+# ── 4. "WHERE ARE WE GOING?" — answered from what was said this scene ────────
+# The window keeps, per turn, who spoke and the concepts (action + subject). A "where" question about a
+# motion verb looks for the latest earlier turn that had a motion verb and answers with the place that
+# came with it. Closed templates, draft wording to review. If nothing was said, it says so (it never
+# accepts "that" as an answer to a question).
+_WHERE = re.compile(r"\bwhere\b", re.I)
+# 2026-09-26 (author's report): only the gerund/participle forms were listed here, so a turn
+# phrased with the bare verb ("You want to GO to the market?", "let's HEAD to the market")
+# never counted as a motion turn at all -- resolve_concept("go") returns the concept "go"
+# itself, not "going" (concepts aren't lemmatized to a canonical tense), so `turn["concepts"]`
+# held "go", which this set didn't recognize, and _answer_where's backward scan skipped that
+# turn outright even though it's exactly the one that named the destination.
+_MOTION = {"go", "going", "head", "heading", "headed", "walk", "walking",
+           "travel", "traveling", "march", "marching"}
+_WHERE_FOUND_T = ["To {np}.", "We're headed to {np}.", "{Np}. That's where we're going.",
+                  "{Np}, like you said."]
+_WHERE_UNKNOWN_T = ["I don't know. You tell me.", "No idea. Where to?", "You haven't said."]
+
+
+def _turns_before_now(ccm):
+    """Every turn record still held (window + short term), newest first, without the current cycle."""
+    mem = ccm.memory_m
+    by_cycle = {}
+    for t in list(mem.window_turns(before_cycle=mem._cycle)):
+        by_cycle[t["cycle"]] = t
+    for e in mem.short_term:
+        for t in e.get("turns", []):
+            if t["cycle"] < mem._cycle:
+                by_cycle.setdefault(t["cycle"], t)
+    return [by_cycle[c] for c in sorted(by_cycle, reverse=True)]
+
+
+def _place_score(concept):
+    from db.db_concepts import CONCEPTS
+    try:
+        from db.db_lexicon import LEXICON
+        cat = LEXICON.get(concept, {}).get("category")
+    except Exception:
+        cat = None
+    sub = CONCEPTS.get(concept, {}).get("subtype")
+    return 2 if (cat == "place" or sub in ("place", "building", "landform")) else 1
+
+
+def _destination(ccm, turn):
+    """The concept of a turn that says WHERE (a place first, any other content noun otherwise)."""
+    from db.db_concepts import CONCEPTS
+    me = (ccm.character_name or "").lower()
+    skip = _QUESTION_WORDS | _MOTION | {me, turn.get("speaker")}
+    # 2026-09-26 (author's report): "quality" (adjective) concepts were missing from this
+    # exclusion -- an emotion tag pooled into the turn's concepts (core/memory_claims.py's
+    # matching _NON_SUBJECT_TYPES already excludes these for the same reason: "I don't
+    # remember the eat" is never said, and neither is "we're headed to the happy") could
+    # tie a real place/thing on _place_score and win the tie-break by coming first in the
+    # turn's concept list -- e.g. an emotion tag set on the SAME turn as "we're going to the
+    # market" ("Happy" -> concept "happy", pooled in before "market" is even reached, see
+    # cycle_manager_v5.py's pooled_text) made a LATER "Where are we going?" answer
+    # "To the happy." instead of "To the market.".
+    cands = [c for c in turn["concepts"]
+             if c not in skip and CONCEPTS.get(c, {}).get("type") not in ("language", "action", "quality")]
+    if not cands:
+        return None
+    return max(cands, key=lambda c: (_place_score(c), -cands.index(c)))
+
+
+def _answer_where(ccm, raw_text, concepts):
+    if not _WHERE.search(raw_text) or not (set(concepts) & _MOTION):
+        return None
+    for turn in _turns_before_now(ccm):                    # newest first
+        if not (set(turn["concepts"]) & _MOTION):
+            continue
+        dest = _destination(ccm, turn)
+        if dest:
+            np_ = _noun_phrase(ccm, dest)
+            return {"phrase": _pick(ccm, "where", _WHERE_FOUND_T).format(np=np_, Np=_cap(np_)),
+                    "subject": dest, "kind": "where", "found": True, "tier": "context",
+                    "action": f"thinking about {np_}"}
+    return {"phrase": _pick(ccm, "where0", _WHERE_UNKNOWN_T), "subject": None, "kind": "where",
+            "found": False, "action": "wondering where we are headed"}
+
+
 def build_recall(ccm, raw_text: str, concepts: list):
     """
     Returns None if the text is not a recall question; otherwise
@@ -352,7 +460,7 @@ def build_recall(ccm, raw_text: str, concepts: list):
     """
     q = detect_recall_query(raw_text)
     if not q:
-        return None
+        return _answer_where(ccm, raw_text, concepts)
 
     if q["kind"] == "about_me":
         phrase, info = _about_user(ccm)
@@ -364,7 +472,7 @@ def build_recall(ccm, raw_text: str, concepts: list):
     content = [c for c in _content_concepts(ccm, concepts) if c not in time_words]
     universe = set()
     for _, e in _all_events(ccm):
-        universe.update(e.get("concepts", []))
+        universe.update(_ev_concepts(e))
     # words the tokenizer/lexicon didn't resolve (names) but memory knows
     for tok in _tokens(raw_text):
         if tok in universe and tok not in content and tok not in _QUESTION_WORDS and tok not in time_words:
@@ -387,7 +495,7 @@ def build_recall(ccm, raw_text: str, concepts: list):
     tier, event = matches[0]
     user = present_name(ccm)
     if remembered_content:
-        subject = next((c for c in event.get("concepts", []) if c in remembered_content), remembered_content[0])
+        subject = next((c for c in remembered_content if c in _ev_concepts(event)), remembered_content[0])
     else:
         subject = next((c for c in event.get("concepts", []) if c != user and c not in _QUESTION_WORDS),
                        (event.get("concepts") or ["that"])[0])

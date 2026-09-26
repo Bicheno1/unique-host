@@ -3,6 +3,43 @@
 Everything below was observed while assembling and testing the project on 2026-09-20
 (Python 3.12, Gradio 6.28, spaCy `en_core_web_sm` 3.8). "Measured" means it was run, not guessed.
 Nothing here is a crash: the app ran every test turn without errors.
+The reply-quality items (grammar of the input, who the reply is about) were re-measured and
+revised on 2026-09-23; ideas for going further are in **NATURALNESS_IDEAS.md**.
+
+## Recently fixed (2026-09-23)
+
+Reported by the author: the character answered almost the same way whatever the grammar of the
+input, and reacted to the speaker no matter what was said. Numbers are from 576 generated replies.
+
+- **Replies ignored the grammar of the input.** The matcher detected 29 constructions (question,
+  order, "If X...", "X is [adj]", passive...) but only for diagnostics: the reply depended on the
+  winning mode alone. Now the construction shapes the *form* of the reply
+  (`core/construction_frames.py`): questions are answered or deflected (a yes/no question echoes its
+  object, "Do you know him?" -> "Him? ..."), orders are complied with or refused, "If/When/Although
+  X, ..." builds the reply around X, "X is [adj]" picks up the adjective, and existential, passive,
+  negation and hypothetical input get their own openers. The mode still decides *what* the
+  character does, and frames are keyed by the mode's stance (urgent / open / closed / unsure), so
+  the tone cannot contradict it (the 2026-09-10 problem).
+- **The reply targeted the speaker on every turn.** 137 of 144 replies to questions said "you"
+  ("What is that noise?" -> "We keep still and watch you"). Now the target is the topic of the
+  input when there is a clear one ("...watch the noise") and the speaker only otherwise
+  (`core/topic_target.py`). Passive input targets the agent ("The door was broken by the bandit" ->
+  the bandit); pronouns and vague nouns ("the way", "the thing") never count as topics. Sentence and
+  action line read one shared subject (`response["subject"]`, new field `target_source`).
+- **Stacked fragments.** 269 of 329 framed replies had 3+ sentences and 62 had 3+ fragments in a
+  row ("Brave! Really. Steady. We open right up."). Now the core's leading fragments yield to the
+  frame (never a sentence that names the target, never when what remains would end dangling) and
+  the reply is capped at 3 sentences (questions and orders may reach 4 as a last resort, so they are
+  never left unanswered).
+- **Three defects found while testing:** lowercase after an ellipsis ("Why... good question."), a
+  stripped fragment that left "We find out what." (both caught by the new robustness test), and,
+  while regenerating the README demo, a warning ("Watch out Delia, a bandit!") answered as a refused
+  order ("That can't be done right now."). Warnings ("Watch out", "Look out", "Heads up", "Careful",
+  "Beware") now have their own frames.
+- **Safety:** both layers have a switch (`USE_CONSTRUCTION_FRAMES`, `USE_TOPIC_TARGET`) and fall back
+  to the previous behavior if they ever raise on odd input. 66 odd inputs (empty, 3000 characters,
+  emoji, Spanish, `{}`, broken markers...) x 4 speaker types ran through the layers and the full
+  cycle without an exception or malformed text.
 
 ## 1. What input it understands
 
@@ -33,8 +70,6 @@ What was measured, using Delia v3, Joaquin v1 and a test character:
 | **Tier escalation** (short -> medium -> long) | Works since 2026-09-20 | Medium -> long was unreachable (fixed, tested). The same event must recur within 10 cycles to leave short-term, and it needs 3 repeats for medium and 10 for long. |
 | **Spontaneous recall** (`evoked`) | **Dormant** | Fires on unmet needs, not on threat as the paper describes; searches long-term memory only, with placeholder word lists that do not include `cage`/`road`. 0 recalls in 60 idle turns. The `evoked` list in the state is never filled (bug). |
 | **Memory shown in the text** | **Only when asked** | Since 2026-09-20 the character recalls on request and checks claims against memory (see "Memory recall and claims" below). It never volunteers a memory. |
-
-**Danger detection can be outweighed by a recent positive stretch.** Measured 2026-09-22: V (viability push) can climb to more than double I (inviability) even during an active threat (a dragon attack), if the character was coming from a strongly positive moment right before — so the engine doesn't always react to a sudden threat. This is one of the things a new user is most likely to notice if not warned about it in advance.
 
 Why a character still reacts differently later in a session: **plasticity** (each word's valence
 drifts by about 0.25 per exposure, because the Opening rule `dist_mental < 30` is almost always
@@ -86,7 +121,6 @@ Limits:
 - **Most lexicon words carry no emotional load.** Only ~67 hand-written concepts plus the
   words reached by your questionnaire answers push anything. First impressions can look off:
   a bandit with a drawn blade got "We welcome the bandit. Gladly." for one character.
-- **Danger/benefit vocabulary coverage is limited** (~120 hand-curated concepts plus ~150 words in `db/db_danger.py`); uncommon words can register nothing at all (e.g. "devour" currently has no effect).
 - **One slider covers many words.** `people_opinion` also drives `bandit`, `villain`, `hero`, so a
   friendly-to-people character welcomes a bandit.
 - **Ties between axes fall into "benefit"** (first axis wins). With flat answers every stimulus
@@ -97,13 +131,35 @@ Limits:
 - Identity: only **age** is verified ("You are 40" -> "I am 27 years old"). "How old are you?"
   is not answered (there is no `age` concept). Father/mother/pet answers are gated by the
   character's mode and may be withheld.
-- Replies come from a closed phrase bank (84 phrases); wording and `lean` tags are a draft to
-  review. `layers/vitality_voice.py` phrases are still placeholders.
+- Replies come from closed phrase banks (85 mode phrases plus 158 frame phrases); wording and `lean`
+  tags are a draft to review. `layers/vitality_voice.py` phrases are still placeholders.
 - With the default 16 modes, only 3–4 are reached by a flat character (engine, not phrases).
 - Ambiguous homonyms (bolt, heart, spike, spell, mark, bark) are decisions left to the author.
 - The somatic plateau that never returns to 0 is expected design, not a bug.
 
-- With the "You" speaker the phrase bank puts "you" in a noun slot, so some replies read awkwardly ("You and I handle you side by side"); the action line now names the player (`*accepting Marta*`).
+- **Input the matcher does not recognise gets no frame** (plain "The bandit is here."). Existential,
+  passive, negation, hypothetical and clause frames appear 50-85% of the time on purpose, so not
+  every reply becomes two sentences.
+- **Order frames comply or refuse without knowing what was asked.** "Run!" can get "Yes, right
+  away!" followed by a core that does something else ("We can't leave Joaquin alone. We need to
+  know."), because the frame only looks at the mode's stance, not at the order's verb.
+- **Frame wording is a draft** (158 phrases in `core/construction_frames.py`). By design they use no
+  personal pronouns, because the core's pronoun changes with the axis (We / You / I / They).
+- **No person reflection.** A clause that contains I/we/you is not echoed ("If you move, ..."), and
+  a yes/no echo never repeats you/me words ("Do you like me?" gets no echo). The echo is the raw
+  noun phrase, so "Is the bandit dead?" echoes "Dead?".
+- **Pronouns are not resolved between turns.** "Is he dead?" has no clear topic, so the target stays
+  the speaker ("Dead? ... We investigate you").
+- **One target per turn**: the subject spaCy extracts ("I found a wolf" reacts to the wolf, not to
+  the finder). With a subject and a different object of interest ("Joaquin attacks the bandit") the
+  subject wins, and the target is not checked against the word that carried the emotional load.
+- **The mode's verb does not know what kind of thing the target is:** "I don't like this place" can
+  give "We hit the place first."
+- **Core phrases repeat across different inputs** (5-6 variants per mode): the same
+  "I hold it in and wait for the bandit to move." appeared for a passive and for a conditional.
+- Identity questions ("What is your name?") still bypass all of this (`build_phrase` answers first).
+
+- When the speaker is the target (the input has no clearer topic) the phrase bank puts "you" in a noun slot, so some replies read awkwardly ("You and I handle you side by side"); the action line names the player (`*accepting Marta*`).
 
 ## 4. Character files and the compiler
 
@@ -147,11 +203,11 @@ Limits:
   was served and its functions called directly; it was not clicked through in a browser.
 - License: PolyForm Noncommercial 1.0.0 (unmodified text) with a `NOTICE`. The attribution terms
   of WordNet and `wordfreq`, which the lexicon was built from, were not reviewed.
-- The reporting channel in the README now points to GitHub Issues and email.
-- The interface has a speaker selector (Narrator / You / any name); the default is Narrator. The engine reacts to a named speaker by naming them as the target of its reply; a speaker is not a second host (one host per process).
+- The reporting channel in the README is still a placeholder.
+- The interface has a speaker selector (Narrator / You / any name); the default is Narrator. The engine names the speaker as the target of its reply only when the input has no clearer topic (see "Recently fixed"); a speaker is not a second host (one host per process).
 
 ## 7. Tests
 
-- Existing suites pass: homonyms (6), contradiction (3), response bank (14), memory recall (11), speakers (10), message fields (8), memory claims (9), memory tiers (7), chemical depletion (7), memory threat (11), danger tags (8), compiler (19).
+- Existing suites pass: robustness (5), topic target (7), construction frames (21), homonyms (6), contradiction (3), response bank (14), memory recall (11), speakers (10), message fields (8), memory claims (9), memory tiers (7), chemical depletion (7), memory threat (11), danger tags (8), compiler (19).
 - Not covered by any test: the injector reset, the phrase changes made on 2026-09-20, session
   resume, the UI, and natural event closing during play.

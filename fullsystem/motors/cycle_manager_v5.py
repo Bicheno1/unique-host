@@ -823,6 +823,15 @@ class CycleManagerV5:
         if str(_action_subject).lower() == "user":
             _action_subject = self.user_name or "you"
 
+        # Who's actually there to receive a person-directed gesture
+        # ("thanking", "smiling at"...) if `_action_subject` turns out to be
+        # "that" -- see core/action_bank.py's _REQUIRES_PERSON_PREFIXES.
+        # forced_focus is who spoke this turn ("user", a name, or None for
+        # a narrator turn); falls back to the player, same as _action_subject above.
+        _speaker_subject = forced_focus if forced_focus is not None else "user"
+        if str(_speaker_subject).lower() == "user":
+            _speaker_subject = self.user_name or "you"
+
         from core.action_bank import render_action_from_bank
         action_text = render_action_from_bank(
             response["verb"], _action_subject, axis=response.get("axis"),
@@ -830,6 +839,7 @@ class CycleManagerV5:
                    else self.mental_states.mental_gains),
             state=(s_state if dominant == "somatic" else m_state),
             memory=self._action_variant_memory,
+            speaker_subject=_speaker_subject,
         )
         if not action_text:
             from lemminflect import getInflection
@@ -839,6 +849,12 @@ class CycleManagerV5:
             _prep = VERB_PREPOSITIONS.get(response["verb"])
             action_text = f"{_verb_ing} {_prep} {_action_subject}" if _prep \
                 else f"{_verb_ing} {_action_subject}"
+        # LOSS SAFETY NET (v0.2): same guard as the spoken line above (core/loss_safety_net.py) -- keeps
+        # the gerund from agreeing in absurd literal terms ("thanking the home" right after it burned
+        # down). Same priority as the base render: recall/contradiction below still override it.
+        from core.loss_safety_net import applies as _loss_applies_a, fallback_action as _loss_action
+        if _loss_applies_a(response["verb"], raw_text, _action_subject):
+            action_text = _loss_action()
         if recall:
             action_text = recall["action"]
         elif _memory_contradiction and self._last_claim:

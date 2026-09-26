@@ -35,6 +35,19 @@ try:
 except ImportError:
     EXTRA_LABELS = {}
 
+# Hand-written labels for branches added directly to lexicon_db/db_category_words.py (not by the
+# generator tools -- see questionnaire/category_tree.py's comments on "activity" and "settlement").
+# Kept here, not in db_category_words_extra.py, which is marked "do not edit by hand: regenerate with
+# the tool" and would be silently wiped by that regeneration.
+MANUAL_LABELS = {
+    ("non_biological", "activity"):
+        "How do they feel about everyday tasks and activities in general -- work, errands, routines? "
+        "(1=dislike/avoid, 10=drawn to it)",
+    ("non_biological", "place", "settlement"):
+        "How do they feel about towns and cities specifically -- crowded, populated places? "
+        "(1=avoid/uneasy, 10=feel safe/at home)",
+}
+
 
 def _question_key(path: tuple) -> str:
     return QUESTION_PREFIX + "__".join(path)
@@ -53,6 +66,8 @@ def _label_for_path(path: tuple) -> str:
     -- broken plural, and "communications" reads as objects/mail, not
     as the ACT of communicating). Branch on path[0] instead.
     """
+    if path in MANUAL_LABELS:
+        return MANUAL_LABELS[path]
     if path in EXTRA_LABELS:
         return EXTRA_LABELS[path]
     subtype = path[1].replace("_", " ")

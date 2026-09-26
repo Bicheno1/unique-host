@@ -233,11 +233,33 @@ ACTION_BANK = {
 }
 
 
+# Variants that are inherently a gesture DIRECTED AT SOMEONE -- you can
+# thank, nod to, smile at, beam at, embrace, shake hands with, or open up to
+# a PERSON, never a place or a plan. When `subject` comes in as "that" (a
+# non-biological topic already downgraded upstream -- see
+# core/topic_target.py's to_display_subject), these specific variants
+# redirect at whoever is actually there to receive the gesture (the current
+# speaker) instead of literally formatting "thanking that".
+# 2026-09-26 (author's report): "You wanna go to the market?" -> mode
+# "accept" -> "thanking the market". Fixed in two parts: the market is now
+# "that" by the time it gets here (upstream fix), and gestures in this set
+# go to the speaker instead of "that" ("thanking Joaquin").
+_REQUIRES_PERSON_PREFIXES = (
+    "welcoming", "nodding to", "smiling at", "thanking", "beaming at",
+    "embracing", "shaking hands with", "opening up to",
+)
+
+
 def render_action_from_bank(raw_mode: str, subject: str, axis: str = None,
                              gains: dict = None, state: dict = None,
-                             memory: dict = None, rng=None):
+                             memory: dict = None, rng=None, speaker_subject: str = None):
     """Returns the gesture line, or None if the mode is not in the bank
-    (the caller then falls back to the old plain-gerund construction)."""
+    (the caller then falls back to the old plain-gerund construction).
+
+    speaker_subject: who is actually talking to the character this turn
+    (already resolved by the caller -- see cycle_manager_v5.py). Used ONLY
+    to stand in for `subject` on the person-directed gestures listed in
+    _REQUIRES_PERSON_PREFIXES, and only when `subject` is "that"."""
     from core.response_bank import bank_key, pick_variant
 
     key = bank_key(raw_mode, axis)
@@ -246,4 +268,13 @@ def render_action_from_bank(raw_mode: str, subject: str, axis: str = None,
     idx = pick_variant(key, gains, state, memory, rng, bank=ACTION_BANK)
     template = ACTION_BANK[key][idx][1]
     subject = subject or "that"
+    # Same "accept"-only downgrade as core/response_bank.py's render_from_bank
+    # -- see the comment there.
+    if raw_mode == "accept":
+        from core.topic_target import to_display_subject
+        subject = to_display_subject(subject)
+    if subject.lower() == "that" and speaker_subject:
+        lowered = template.lower()
+        if any(lowered.startswith(p) for p in _REQUIRES_PERSON_PREFIXES):
+            subject = speaker_subject
     return template.format(subject=subject, subject_cap=subject[:1].upper() + subject[1:])

@@ -70,6 +70,22 @@ THREAT_DEDUPE_WINDOW  = 8       # a distance event that overlaps a threat event 
 
 _CLASS_RANK = {None: 0, "micro": 1, "medium": 2, "large": 3, "major": 4}
 
+# ── CONTEXT WINDOW -> SHORT TERM (roleplay) ──────────────────────────────────
+# Everything said in a scene is something the host lived: roleplay has no real-world noise to
+# filter out. The arc tracker above only stores an event when the engine returns to rest, and real
+# characters never do (resting distances D~120-350, C~45-130 vs close thresholds 22 / 11), so
+# nothing reached short term and "Do you remember the market?" answered "I don't remember".
+# The window now also keeps a record per turn (speaker + the concepts of that turn, in order:
+# action and subject). Every CONTEXT_FLUSH_TURNS turns the records move to short term as ONE event
+# (source "context"). Nothing is dropped for being small (floor "micro") and it is capped at
+# CONTEXT_CLASS_CAP so a mundane chunk can never become a long-term / nuclear memory through the
+# scale mismatch (the arc tracker keeps deciding those). Ageing/decay is NOT touched.
+# CONTEXT_FLUSH_ENABLED = False restores the old behaviour.
+CONTEXT_FLUSH_ENABLED = True
+CONTEXT_FLUSH_TURNS   = 6
+CONTEXT_TURNS_KEPT    = 12      # turn records kept per short-term entry when chunks merge
+CONTEXT_CLASS_CAP     = "medium"
+
 HIGH_MENTAL_THRESHOLD  = 90     # high mental distance
 HIGH_SOMATIC_THRESHOLD = 180    # high somatic distance
 NUCLEAR_THRESHOLD      = 10     # near-center threshold to mark nuclear
@@ -160,6 +176,8 @@ class MemorySystem:
         self._ctx_peak_sign_m = (0.0, 0.0)
         self._ctx_active     = False
         self._ctx_cycle      = 0
+        # per-turn records of the window: {cycle, speaker, concepts, text, D, C, sign_s, sign_m}
+        self._ctx_turns      = []
 
         # Threat-event context (separate segmentation, see THREAT EVENTS above)
         self._thr_active   = False
@@ -204,7 +222,72 @@ class MemorySystem:
             self._promote(threat_event)
         if event:
             self._promote(event)
+        if CONTEXT_FLUSH_ENABLED and concepts:          # a turn with no concepts says nothing to remember
+            self._log_turn(text, concepts, D, C, somatic_state, mental_state)
+            if len(self._ctx_turns) >= CONTEXT_FLUSH_TURNS:
+                self._promote(self._flush_context())
         return threat_event or event
+
+    # ── CONTEXT TURNS ─────────────────────────────────────────────────────────
+
+    def _log_turn(self, text, concepts, D, C, somatic_state, mental_state):
+        """One record per turn inside the window: who spoke and what (action, subject) was said."""
+        self._ctx_turns.append({
+            "cycle":   self._cycle,
+            "speaker": next((c for c in concepts if c in self.ignore_concepts), None),
+            "concepts": list(concepts),
+            "text":    text,
+            "D": round(D, 4), "C": round(C, 4),
+            "sign_s": _somatic_sign(somatic_state), "sign_m": _mental_sign(mental_state),
+        })
+
+    def window_turns(self, before_cycle=None):
+        """The turns still open in the window, oldest first. `before_cycle`: only turns older than it
+        (the caller passes the current cycle so a question never answers itself)."""
+        return [t for t in self._ctx_turns if before_cycle is None or t["cycle"] < before_cycle]
+
+    def _flush_context(self):
+        """Moves the window's turn records to a short-term event (see CONTEXT WINDOW above)."""
+        turns, self._ctx_turns = self._ctx_turns, []
+        return self.context_event(turns)
+
+    def context_event(self, turns):
+        """A short-term-shaped event built from turn records (pure: does not touch the window)."""
+        if not turns:
+            return None
+        peak = max(turns, key=lambda t: t["C"] / MENTAL_SCALE + t["D"] / SOMATIC_SCALE)
+        peak_D = max(t["D"] for t in turns)
+        peak_C = max(t["C"] for t in turns)
+        ec = _classify(peak_C, peak_D) or "micro"
+        if _CLASS_RANK[ec] > _CLASS_RANK[CONTEXT_CLASS_CAP]:
+            ec = CONTEXT_CLASS_CAP
+        # concepts by how often they came up (the speaker is in ignore_concepts and tags every event)
+        count, last = {}, {}
+        for i, t in enumerate(turns):
+            for c in t["concepts"]:
+                count[c] = count.get(c, 0) + 1
+                last[c] = i
+        ranked = [c for c in sorted(count, key=lambda c: (-count[c], -last[c]))
+                  if c not in self.ignore_concepts]
+        first, end = turns[0], turns[-1]
+        graph = {
+            "start": (first["D"], first["C"]),
+            "peak":  (round(peak_D, 4), round(peak_C, 4)),
+            "end":   (end["D"], end["C"]),
+            "peak_sign_somatic": peak["sign_s"], "peak_sign_mental": peak["sign_m"],
+            "end_sign_somatic":  end["sign_s"],  "end_sign_mental":  end["sign_m"],
+        }
+        return {
+            "text": end["text"], "concepts": _key(ranked), "graph": graph,
+            "event_class": ec, "is_nuclear": False,
+            "mental_peak": round(peak_C, 4), "somatic_peak": round(peak_D, 4),
+            "age": 0, "reps": 1, "closed_at": self._cycle,
+            "valence": _event_valence(peak["sign_s"], peak["sign_m"]),
+            "source": "context", "turns": turns[-CONTEXT_TURNS_KEPT:],
+            # everything said in the chunk, for memory RECALL only ("concepts" stays the 5-concept key the
+            # emotional engine and the tier merging use, so this does not widen what evokes a feeling)
+            "all_concepts": ranked[:40],
+        }
 
     # ── THREAT TRACKING ───────────────────────────────────────────────────────
 
@@ -396,10 +479,19 @@ class MemorySystem:
             self._add_long(event)
             return
 
-        existing_s = self._find(self.short_term, event["concepts"])
+        # A context chunk is a RECORD of the scene, not a second occurrence: it only merges with other chunks
+        # (a topic that keeps coming up), never with the arc/threat event of the same moment, or every
+        # episode would count twice towards the 3-repetition promotion.
+        is_ctx = event.get("source") == "context"
+        same_kind = [e for e in self.short_term if (e.get("source") == "context") == is_ctx]
+        existing_s = self._find(same_kind, event["concepts"])
         if existing_s:
             existing_s["reps"] += 1
             existing_s["age"]   = 0
+            if event.get("turns"):        # a repeated topic keeps the turns of every chunk
+                existing_s["turns"] = (existing_s.get("turns", []) + event["turns"])[-CONTEXT_TURNS_KEPT:]
+                merged = list(dict.fromkeys(existing_s.get("all_concepts", []) + event.get("all_concepts", [])))
+                existing_s["all_concepts"] = merged[:40]
             # Fix: escalation medium -> long was unreachable. Repetitions were only
             # counted on the SHORT entry, so the medium entry stayed at reps=3 forever (never
             # reaching MEDIUM_TO_LONG_REPS) and its age was never reset. Now a repeat
@@ -452,6 +544,8 @@ class MemorySystem:
             "closed_at":    event.get("closed_at"),
             "valence":      event.get("valence"),
             "source":       event.get("source", "distance"),
+            "turns":        list(event.get("turns", [])),
+            "all_concepts": list(event.get("all_concepts", [])),
             "age": 0, "reps": 1,
         })
         if len(self.short_term) > SHORT_TERM_MAX:
