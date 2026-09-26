@@ -189,10 +189,7 @@ banks, so the same wording can come back for different inputs.
 nonsensical on these scenes (see above), but the character still doesn't withdraw or grieve as such — it
 resolves the scene on its own dominant personality trait, same as any other negative event, which can still
 read as distant or oddly composed for something like a death or a betrayal. A real "loss" reaction is a
-design decision still being worked out, not yet implemented: see `LOSS_REACTION_DRAFT.md`. Full list, with
-measurements: **[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)**. Ideas for more natural replies:
-**[NATURALNESS_IDEAS.md](NATURALNESS_IDEAS.md)**. A separate draft on loss/grief/bereavement reactions (not
-yet decided or implemented): **LOSS_REACTION_DRAFT.md**.
+design decision still being worked out.
 
 ## Tests
 
