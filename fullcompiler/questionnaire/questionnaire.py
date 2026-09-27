@@ -33,9 +33,8 @@
 # engines at all — it's descriptive, used by core/construction_matcher.py
 # to keep the character's own name out of subject extraction.
 #
-# See chemical_system_docs/ for the full design rationale:
-#   - chemical_system_axis_gain_questions_english.md  (chemistry/gain wording)
-#   - chemical_system_questionnaire_design.md          (chemistry/bias rationale)
+# See the internal chemistry design notes (gain wording and bias
+# rationale) for the full design rationale.
 
 # ── PRIMARY — FORTITUDE (8 questions, 1 per axis) ────────────────────────
 # Each cognitive profile (Abstract/Logical/Structural/Sensory) maps to
@@ -60,8 +59,8 @@ QUESTIONS_PRIMARY_FORTITUDE = [
 # or narrows that row's threshold, before Axis Gain even gets asked which
 # response wins.
 # Axis Gain: once a row is active, which of its 4 responses wins
-# (Attack vs Surrender vs ...). Verbatim from
-# chemical_system_docs/chemical_system_axis_gain_questions_english.md.
+# (Attack vs Surrender vs ...). Verbatim from the internal chemistry
+# design notes.
 QUESTIONS_PRIMARY_CHEMISTRY = [
     # -- Category Bias --
     ("bias_danger",         "How easily does something feel like a real threat to them, rather than a minor annoyance?",
@@ -190,41 +189,6 @@ QUESTIONS_SECONDARY_IDENTITY = [
     ("friend_name", "Closest friend's name (optional)",    "text",  {}),
 ]
 
-# ── TERTIARY — CONCEPTS (8 questions) ────────────────────────────────────
-# Hand-authored overrides for specific concepts (family, animals, a
-# named fear/comfort) — the only questions that talk about a particular
-# word/concept rather than tuning the engines in general.
-#
-# MIGRATION 2026-09-0X (the design notes): the 4 GROUP questions below
-# (people/environment/world_objects/supernatural) replace the fixed,
-# universal "related" tag lists that db/db_concepts.py hand-authored for
-# ~25 of its ~58 concepts (person/animal/environment/object/illogical
-# groups — see WORLD_GROUPS below). Each group answer cascades the SAME
-# 1-10 value to every word in WORLD_GROUPS[key]["words"] via
-# _add_valenced_concept, same mechanism as family_opinion/
-# animals_opinion — no per-word sub-question, to
-# keep the questionnaire short. animals_opinion is REUSED (not
-# duplicated) for fish/bird/duck, which weren't personalized before.
-#
-# NOT migrated (confirmed 2026-09-0X, checked first): the ~10 "status"
-# concepts (danger/threat/alone/safe/calm/scared/tired/quiet/aggressive/
-# tone) stay on their fixed universal tags. Checked whether they're
-# already covered elsewhere before touching anything (as instructed):
-# core/lexicon_bridge.py's ~120-word valence list does NOT contain any
-# of them (only "quiet" appears, and only as a scope/Lv word with no
-# valence sign), and db/db_lexicon.py only carries WordNet category, not
-# a push vector. So they are NOT yet redundant — retiring them now would
-# be a real regression (e.g. the demo's "safe light" input would lose
-# "safe" entirely), not a cleanup. They aren't "opinions of a thing"
-# anyway (nobody rates "danger" 1=dislike..10=love the way they rate
-# coffee) — their personalization already happens through a different,
-# already-implemented path (Category Bias + Axis Gain in
-# systems/chemical_system.py, see its LEGACY_TRIGGER_TO_MODES shim).
-# Revisit only once a real per-word sentiment source lands (state doc
-#  item 6) and can replace their fixed tags with something equally
-# real. Verbs (run/walk/hide/breathe/fly) and grammar glue
-# (self/tu/es/name/identity/question words/tone_es) were left alone for
-# the same reason — not "opinion of a thing" concepts.
 QUESTIONS_TERTIARY_CONCEPTS = [
     ("family_opinion", "What do they think of their family? (1=hostile, 10=loving)", "slider", {"minimum": 1, "maximum": 10, "value": 5}),
     ("animals_opinion", "How do they feel about animals? (1=fear/dislike, 10=love)", "slider", {"minimum": 1, "maximum": 10, "value": 5}),
@@ -709,12 +673,18 @@ def build_character_json(answers: dict) -> dict:
 
     # ── IDENTITY ANCHORS ──────────────────────────────────────────────
     # Unlike core_fear/core_comfort (which give a general emotional load
-    # via valence.py), these words don't need their own push -- they only
-    # need to be a RECOGNIZABLE concept (resolve_concept() has to find
-    # them) so that IdentityAnchorSystem (core_identity.py) can detect
-    # them in concept_names every cycle. If the word doesn't already exist
-    # in the lexicon, it is added as a neutral concept (no "related" --
-    # the push comes from the anchor system, not the general tag system).
+    # via valence.py), these words mainly need to be a RECOGNIZABLE concept
+    # (resolve_concept() has to find them) so that IdentityAnchorSystem
+    # (core_identity.py) can detect them in concept_names every cycle, and
+    # so it can inject its own ANCHOR_ATTACK_PUSH when one is attacked. If
+    # the word doesn't already exist in the lexicon, it is added as a
+    # neutral concept -- EXCEPT "valued_bond" (a specific person the
+    # character bonds with), which also gets a "self" branch to
+    # loved_person, so that just mentioning them (before any attack) reads
+    # as a warm attachment signal (V/Gv) instead of nothing at all. The
+    # other three anchors (purpose/security/structure) are usually
+    # abstract or object words, not people, so they keep the plain
+    # concept-only registration.
     identity_anchors = []
     _ANCHOR_QUESTIONS = [
         ("purpose_source",  "purpose"),
@@ -728,9 +698,11 @@ def build_character_json(answers: dict) -> dict:
             continue
         word = raw.strip().lower()
         if word not in concepts_seed and word not in LEXICON:
+            related = {"self": {"somatic": ["loved_person"], "mental": ["loved_person"]}} \
+                if question_key == "valued_bond" else {}
             concepts_seed[word] = {
                 "sense": "internal", "type": "subject", "subtype": "anchor",
-                "synonyms": [word], "related": {},
+                "synonyms": [word], "related": related,
             }
         identity_anchors.append({"concept": word, "target_stat": target_stat})
 

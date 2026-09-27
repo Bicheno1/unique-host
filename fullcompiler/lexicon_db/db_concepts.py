@@ -233,17 +233,6 @@ CONCEPTS = {
         }
     },
 
-    # ── STATUS ────────────────────────────────────────────────────────────────
-    # good/bad/mysterious added 2026-09-0X to test "X person asks your name"
-    # scenarios — judgment-of-a-person words, same static/universal tier as
-    # danger/safe/calm (see character/questionnaire.py's WORLD_GROUPS
-    # comment for why these stay static rather than going through
-    # character/valence.py: they're not "opinion of a thing", they're
-    # reaction triggers). "bad" mirrors danger's tags exactly (same proven
-    # attack/flee/surrender behavior); "good" mirrors safe's; "mysterious"
-    # is new — it deliberately does NOT carry fear/threat tags, only the
-    # new curiosity_pull tag (db/db_somatic.py, db/db_mental.py), so it
-    # reads as unresolved/unclassifiable rather than as danger.
     "good": {
         "sense":    "sight",
         "type":     "status",

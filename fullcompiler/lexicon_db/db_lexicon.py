@@ -5,7 +5,7 @@
 # (N_WORDS=6000). Now ALL node_types (biological/non_biological/
 # action/quality) have a fine-grained subtype where applicable -- before,
 # action/quality had NO subtype at all. See lexicon_nuevo_UNIQUE_HOST.zip
-# (README.md + PENDIENTES.md) for the full detail of how it was built and
+# (README.md) for the full detail of how it was built and
 # what was left out (748 "sin_determinar" words = genuine noise, not
 # included here; 527 function words -- articles/pronouns/prepositions/
 # adverbs -- deliberately outside the schema, node_type has no place for

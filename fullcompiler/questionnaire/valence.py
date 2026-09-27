@@ -1,7 +1,7 @@
 # character/valence.py — UNIQUE HOST
 #
 # Accumulated Valence — the general -> specific -> free-text-memory
-# refinement chain (ESTADO_DEL_fullsystem.md +).
+# refinement chain.
 #
 # the mechanism is a WEIGHTED AVERAGE, not a raw
 # add/subtract delta ("adds or subtracts on top of what is inherited", 's original
