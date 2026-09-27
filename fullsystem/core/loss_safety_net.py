@@ -1,13 +1,13 @@
 # core/loss_safety_net.py — UNIQUE HOST
 #
-# MINIMAL WORDING GUARD for the hole described in LOSS_REACTION_DRAFT.md.
+# MINIMAL WORDING GUARD for a known wording hole.
 # This is NOT option A/B/C from that draft. It does not touch which mode wins, the emotion label, memory,
 # or valence -- a loss scene still resolves on the character's own dominant axis, exactly as today, and can
 # still read as an odd or overly composed reaction. This module only stops the specific failure that reads
 # as a LANGUAGE error rather than a personality quirk: "attack"/"accept" are rendered as literal physical or
 # social gestures (attacking, tearing into, thanking, welcoming...) and that reads as nonsense -- not "in
 # character" -- when the target is a feeling ("we attack the grief") or something just lost/destroyed/stolen
-# ("thanking the home" right after it burned down). See LOSS_REACTION_DRAFT.md sections 1 and 6.
+# ("thanking the home" right after it burned down).
 #
 # Scope, on purpose: only the two mode families actually observed producing nonsense wording (attack,
 # accept). Other modes on a loss scene (investigate, suppress, signal, observe...) can still read as cold
@@ -25,8 +25,8 @@ LOSS_SAFETY_NET_ENABLED = True
 # The two mode families observed producing nonsense wording against a feeling/loss target.
 _LITERAL_MODES = {"attack", "accept"}
 
-# LOSS_REACTION_DRAFT.md section 5's own reviewed "loss words" list (the negation-and-exclusion decisions
-# there -- e.g. leaving out "alone", "lost", "cry", "gone" as too ambiguous -- already apply here). Not
+# This module's own reviewed "loss words" list (the negation-and-exclusion decisions
+# already made -- e.g. leaving out "alone", "lost", "cry", "gone" as too ambiguous -- already apply here). Not
 # just feeling-nouns: "orphan"/"widow" are people, but "attack"/"accept" applied to them in a crying/loss
 # scene is the same category error as applying it to "grief" directly (both were flagged examples).
 FEELING_WORDS = {

@@ -15,8 +15,7 @@
 # HOW IT WORKS
 #   1. The MODE was already decided by the matrix (category × axis). This does not touch it.
 #   2. Each mode has 5-6 variants. ALL of them mean the same thing (same
-#      response function, defined in chemical_system_physiological_
-#      effects.md); only the nuance of expression changes.
+#      response function); only the nuance of expression changes.
 #   3. Each variant carries a `lean` tag: which axis its expression
 #      nuance leans toward, independent of the mode's axis:
 #         "V/P"   -> warm, open, engaged
@@ -283,12 +282,6 @@ def render_from_bank(raw_mode: str, mode_phrase: str, subject: str, pronoun: str
     subject = subject or "that"
     if subject.lower() == "user":     # the "user" speaker is the one playing: they are addressed as "you"
         subject = "you"
-    # 2026-09-26 (author's report): "accept" reads as a personal/social
-    # response ("we welcome {subject}", "we say yes to {subject}") --
-    # fine for "the bandit" or "you", absurd for a place or a plan ("we
-    # accept the market"). Scoped to this one mode only: elsewhere a
-    # literal object subject is normal ("watching the noise" is fine),
-    # see core/topic_target.py's is_non_biological_subject docstring.
     if raw_mode == "accept":
         from core.topic_target import to_display_subject
         subject = to_display_subject(subject)

@@ -36,27 +36,27 @@ TEMPLATES = {
     "creature": {
         "fear":   {"somatic": ["adrenaline", "cortisol"],        "mental": ["seek_exit", "cognitive_threat"]},
         "threat": {"somatic": ["muscle_tension", "noradrenaline"], "mental": ["hypervigilance"]},
-        "danger": {"somatic": ["adrenaline", "flight_burst"],    "mental": ["traumatic_memory"]},
+        "danger": {"somatic": ["adrenaline", "hostile_contact"],    "mental": ["traumatic_memory"]},
     },
     "weapon": {
         "threat":  {"somatic": ["muscle_tension", "noradrenaline"], "mental": ["hypervigilance"]},
         "hostile": {"somatic": ["hostile_contact"],                "mental": ["suspicion"]},
     },
     "violence": {
-        "danger":  {"somatic": ["adrenaline", "flight_burst"],   "mental": ["traumatic_memory"]},
+        "danger":  {"somatic": ["adrenaline", "hostile_contact"],   "mental": ["traumatic_memory"]},
         "hostile": {"somatic": ["hostile_contact"],              "mental": ["terror"]},
         "fear":    {"somatic": ["adrenaline", "cortisol"],       "mental": ["seek_exit", "cognitive_threat"]},
     },
     "mortal": {
         "vital":   {"somatic": ["vital_threat", "death_presence"], "mental": ["mortality", "terror"]},
-        "danger":  {"somatic": ["adrenaline", "flight_burst"],   "mental": ["traumatic_memory"]},
+        "danger":  {"somatic": ["adrenaline", "hostile_contact"],   "mental": ["traumatic_memory"]},
     },
     "injury": {
         "pain":    {"somatic": ["dolor", "adrenaline"],          "mental": ["anguish"]},
         "danger":  {"somatic": ["adrenaline"],                   "mental": ["traumatic_memory"]},
     },
     "hazard": {
-        "danger":  {"somatic": ["adrenaline", "flight_burst"],   "mental": ["terror"]},
+        "danger":  {"somatic": ["adrenaline", "hostile_contact"],   "mental": ["terror"]},
         "threat":  {"somatic": ["muscle_tension", "noradrenaline"], "mental": ["hypervigilance"]},
     },
     "fear_state": {

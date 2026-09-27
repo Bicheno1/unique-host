@@ -71,14 +71,22 @@ def test_repetition_escalates_threat_events_like_any_other():
 
 
 def test_no_double_count_with_the_distance_tracker():
-    m = MemorySystem()
-    big_s = {"V": 40, "I": 300, "Lv": 300, "Gv": 5}
-    steps = [(["ghost"], 200, 100), (["ghost"], 200, 100), (["dark"], 0, 0), (["dark"], 0, 0)]
-    for concepts, ts, tm in steps:
-        m.update("scene", concepts, big_s, {"P": 5, "A": 150, "Er": 100, "Rr": 5}, ts, tm)
-    for _ in range(4):
-        m.update("scene", ["dark"], REST_S, REST_M)      # distance tracker now sees rest and would close
-    assert len([e for e in all_events(m) if "ghost" in e["concepts"]]) == 1
+    # Context-window flush disabled: see the comment on the equivalent test in test_memory_tiers.py.
+    # 8 update() calls here is exactly CONTEXT_FLUSH_TURNS worth and would add an unrelated "context"
+    # short-term entry that also mentions "ghost", which is real behaviour but not this test's subject.
+    old = ms.CONTEXT_FLUSH_ENABLED
+    ms.CONTEXT_FLUSH_ENABLED = False
+    try:
+        m = MemorySystem()
+        big_s = {"V": 40, "I": 300, "Lv": 300, "Gv": 5}
+        steps = [(["ghost"], 200, 100), (["ghost"], 200, 100), (["dark"], 0, 0), (["dark"], 0, 0)]
+        for concepts, ts, tm in steps:
+            m.update("scene", concepts, big_s, {"P": 5, "A": 150, "Er": 100, "Rr": 5}, ts, tm)
+        for _ in range(4):
+            m.update("scene", ["dark"], REST_S, REST_M)  # distance tracker now sees rest and would close
+        assert len([e for e in all_events(m) if "ghost" in e["concepts"]]) == 1
+    finally:
+        ms.CONTEXT_FLUSH_ENABLED = old
 
 
 def test_flag_off_is_the_old_behaviour():

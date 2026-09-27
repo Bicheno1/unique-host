@@ -378,12 +378,6 @@ def _about_user(ccm):
 # came with it. Closed templates, draft wording to review. If nothing was said, it says so (it never
 # accepts "that" as an answer to a question).
 _WHERE = re.compile(r"\bwhere\b", re.I)
-# 2026-09-26 (author's report): only the gerund/participle forms were listed here, so a turn
-# phrased with the bare verb ("You want to GO to the market?", "let's HEAD to the market")
-# never counted as a motion turn at all -- resolve_concept("go") returns the concept "go"
-# itself, not "going" (concepts aren't lemmatized to a canonical tense), so `turn["concepts"]`
-# held "go", which this set didn't recognize, and _answer_where's backward scan skipped that
-# turn outright even though it's exactly the one that named the destination.
 _MOTION = {"go", "going", "head", "heading", "headed", "walk", "walking",
            "travel", "traveling", "march", "marching"}
 _WHERE_FOUND_T = ["To {np}.", "We're headed to {np}.", "{Np}. That's where we're going.",
@@ -420,15 +414,6 @@ def _destination(ccm, turn):
     from db.db_concepts import CONCEPTS
     me = (ccm.character_name or "").lower()
     skip = _QUESTION_WORDS | _MOTION | {me, turn.get("speaker")}
-    # 2026-09-26 (author's report): "quality" (adjective) concepts were missing from this
-    # exclusion -- an emotion tag pooled into the turn's concepts (core/memory_claims.py's
-    # matching _NON_SUBJECT_TYPES already excludes these for the same reason: "I don't
-    # remember the eat" is never said, and neither is "we're headed to the happy") could
-    # tie a real place/thing on _place_score and win the tie-break by coming first in the
-    # turn's concept list -- e.g. an emotion tag set on the SAME turn as "we're going to the
-    # market" ("Happy" -> concept "happy", pooled in before "market" is even reached, see
-    # cycle_manager_v5.py's pooled_text) made a LATER "Where are we going?" answer
-    # "To the happy." instead of "To the market.".
     cands = [c for c in turn["concepts"]
              if c not in skip and CONCEPTS.get(c, {}).get("type") not in ("language", "action", "quality")]
     if not cands:

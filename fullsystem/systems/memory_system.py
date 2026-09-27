@@ -55,8 +55,8 @@ BASELINE_THRESHOLD     = 11     # real neutral state C~9.2 — closes event when
 # The paper says memories scale by repetition and IMPACT, and that plasticity responds to
 # high-INVIABILITY / high-ABSENCE events. Until now an event was any displacement of the engine
 # in any direction (distance), so a pleasant input ("birds sing") could outrank a threat, and events
-# only closed if the engine came back to rest (which real characters never do, see
-# MEMORY_VS_PAPER.md finding A). Now cycle_manager also passes a THREAT signal: the NET inviability
+# only closed if the engine came back to rest (which real characters never do). Now cycle_manager
+# also passes a THREAT signal: the NET inviability
 # (I - V) and NET absence (A - P) of the raw input, measured before the state scaling. A threat
 # event starts when the normalised signal (somatic /400, mental /200) reaches THREAT_START, and closes
 # after THREAT_QUIET_CYCLES consecutive cycles below it, whatever the engine's resting distance is.

@@ -23,21 +23,18 @@ MENTAL_BASE = {
 
 TAG_VALUES_MENTAL = {
 
-    # ── judgment of others (2026-09-0X, for "good/bad/mysterious person") ──
-    # Mental-side mirror of curiosity_pull (db_somatic.py): high Er, low
-    # elsewhere -> Lv/Er = "unclassifiable" (investigate).
     "curiosity_pull":     {"P":  4, "A":  4, "Er": 30, "Rr":  4},
 
     # ── TERROR / DISSOCIATION ──────────────────────────────────────────────────
-    "terror":            {"P":  2, "A": 38, "Er": 34, "Rr":  4},  # maximum functional fear
-    "anguish":          {"P":  4, "A": 26, "Er": 28, "Rr":  6},  # intense anxiety
+    "terror":            {"P":  2, "A": 44, "Er": 22, "Rr":  4},  # maximum functional fear
+    "anguish":          {"P":  4, "A": 32, "Er": 18, "Rr":  6},  # intense anxiety
     "confusion":         {"P":  6, "A": 20, "Er": 22, "Rr":  8},  # disorientation
     "disbelief":      {"P":  5, "A": 22, "Er": 18, "Rr": 10},  # cannot process
-    "cognitive_threat": {"P":  3, "A": 28, "Er": 26, "Rr":  6},  # threat to logic
-    "overflow":          {"P":  2, "A": 36, "Er": 38, "Rr":  3},  # emotional collapse
+    "cognitive_threat": {"P":  3, "A": 34, "Er": 16, "Rr":  6},  # threat to logic
+    "overflow":          {"P":  2, "A": 42, "Er": 22, "Rr":  3},  # emotional collapse
 
     # ── ALERT / VIGILANCE ───────────────────────────────────────────────────
-    "hypervigilance":   {"P": 14, "A": 12, "Er": 24, "Rr": 10},  # constant scanning
+    "hypervigilance":   {"P": 14, "A": 26, "Er": 16, "Rr": 10},  # constant scanning
     "alert":            {"P": 12, "A": 10, "Er": 20, "Rr": 12},  # heightened attention
     "suspicion":          {"P": 10, "A": 14, "Er": 16, "Rr": 14},  # distrust
     "anticipation":      {"P": 16, "A":  8, "Er": 18, "Rr": 16},  # future projection
@@ -70,8 +67,8 @@ TAG_VALUES_MENTAL = {
     # Behavioral tags — drive to seek something to reduce threat
     "seek_light":        {"P":  8, "A": 22, "Er": 20, "Rr":  6},  # seek light/orientation under fear
     "seek_person":       {"P": 12, "A": 18, "Er": 16, "Rr":  8},  # seek safe presence
-    "seek_exit":         {"P":  6, "A": 26, "Er": 24, "Rr":  4},  # seek exit/escape
-    "traumatic_memory":  {"P":  4, "A": 30, "Er": 28, "Rr":  6},  # traumatic memory activation
+    "seek_exit":         {"P":  6, "A": 32, "Er": 14, "Rr":  4},  # seek exit/escape
+    "traumatic_memory":  {"P":  4, "A": 36, "Er": 16, "Rr":  6},  # traumatic memory activation
 
     # ── CALM / RECOVERY ────────────────────────────────────────────────────────
     "cognitive_calm":    {"P": 22, "A":  2, "Er":  6, "Rr": 24},  # active cognitive calm
@@ -89,13 +86,17 @@ TAG_VALUES_MENTAL = {
     #   person  → moderate P/Rr (presence of other, social grounding)
     #   light   → moderate P/Rr (orientation restored, clarity signal)
 
-    "concept_ghost":   {"P":  3, "A": 32, "Er": 30, "Rr":  4},  # impossible entity — logic break
+    "concept_ghost":   {"P":  3, "A": 38, "Er": 18, "Rr":  4},  # impossible entity — logic break
     "concept_dark":    {"P":  6, "A": 18, "Er": 16, "Rr":  8},  # absence of light — diffuse fear
     "concept_room":    {"P":  8, "A":  8, "Er": 10, "Rr": 12},  # enclosed context — mild anticipation
     "concept_person":  {"P": 18, "A":  4, "Er": 10, "Rr": 16},  # human presence — relational anchor
     "concept_light":   {"P": 16, "A":  3, "Er":  8, "Rr": 18},  # visible light — clarity/security
 
+    # loved_person: mental mirror of the somatic tag of the same name --
+    # a specific valued bond, not a generic person.
+    "loved_person":    {"P": 22, "A":  2, "Er":  8, "Rr":  8},
+
     # ── EXISTENTIAL REFLECTION ─────────────────────────────────────────────────
-    "mortality":         {"P":  4, "A": 22, "Er": 20, "Rr": 16},  # awareness of death
+    "mortality":         {"P":  4, "A": 28, "Er": 12, "Rr": 16},  # awareness of death
     "identity":         {"P": 16, "A":  2, "Er": 10, "Rr": 18},  # sense of self
 }

@@ -1,6 +1,6 @@
 # systems/chemical_system.py — CCM v6 (single-formula redesign)
 #
-# REDESIGN —, see chemical_system_docs/chemical_system_redesign_conclusions.md
+# REDESIGN
 # ──────────────────────────────────────────────────────────────────────────
 # The old design (7 chemicals with a name and a hand-calibrated {V,I,Lv,Gv}
 # vector each) is gone. It is replaced by ONE scalable mechanism applied to
@@ -13,18 +13,17 @@
 #              resolved by a named chemical — see MATRIX_MODES below.
 #
 # "Gain" is a per-character, per-cell trait (16 values, 1-10, future
-# questionnaire — chemical_system_docs/chemical_system_axis_gain_full_matrix.md)
-# that can override which axis wins a raw-input tie, exactly like the
-# trauma/nuclear-memory override already documented for the somatic→mental
-# temporal correction (the system-state notes). Until that questionnaire
-# exists, DEFAULT_GAINS (all 5/10 → multiplier 1.0) makes this behave like
-# plain "raw axis wins", so nothing breaks for characters without gains set.
+# questionnaire) that can override which axis wins a raw-input tie, exactly
+# like the trauma/nuclear-memory override already documented for the
+# somatic→mental temporal correction (the system-state notes). Until that
+# questionnaire exists, DEFAULT_GAINS (all 5/10 → multiplier 1.0) makes this
+# behave like plain "raw axis wins", so nothing breaks for characters
+# without gains set.
 #
 # Each of the 16 modes keeps a biological reference name in comments (its
-# dominant physiological system per chemical_system_physiological_effects.md)
-# purely to justify its half-life/pattern — NOT as a separate channel to
-# program. There is only ONE release/decay/push mechanism, applied 16 times
-# with different parameters.
+# dominant physiological system) purely to justify its half-life/pattern —
+# NOT as a separate channel to program. There is only ONE release/decay/push
+# mechanism, applied 16 times with different parameters.
 #
 # WHAT'S IMPLEMENTED HERE (closed per the design docs):
 #   - MATRIX_MODES: the 16 modes, one per (category, axis) cell.
@@ -44,9 +43,8 @@
 # WHAT'S STILL PENDING (explicitly open in the design docs, not guessed here):
 #   - Real per-species/per-individual min/max/equilibrium ranges — today's
 #     half_life/max_level/peak_push numbers are a first-pass, qualitative
-#     read of "peak/plateau/tonic" from chemical_system_physiological_effects.md,
-#     not the calibrated CCM_*.xlsx data (which itself has 3 open audit bugs,
-#     see chemical_system_docs/chemical_system_redesign_conclusions.md).
+#     read of "peak/plateau/tonic", not the calibrated CCM_*.xlsx data (which
+#     itself has 3 open audit bugs).
 #   - Rate-of-change (delta/time) as a second trigger dimension for sensory
 #     thresholds  — not modeled here, this file only sees the already-
 #     resolved axis_push per cycle, not its velocity.
@@ -67,17 +65,16 @@ AXES         = ["V", "I", "Gv", "Lv"]
 # are the same concept, addressed two ways (the matrix cares about the verb
 # for phrasing; this file cares about it for the physiological channel).
 #
-# pattern   : shape of the curve, from chemical_system_physiological_effects.md
-#             ("peak", "peak_slow", "peak_moderate", "plateau", "plateau_brief",
-#              "tonic", "collapse", "brake", "brake_active", "brake_passive")
+# pattern   : shape of the curve ("peak", "peak_slow", "peak_moderate",
+#             "plateau", "plateau_brief", "tonic", "collapse", "brake",
+#             "brake_active", "brake_passive")
 # half_life : cycles to drop to 50% — peaks decay fast, plateaus/tonic slow
 # peak_push : somatic push magnitude on this mode's own axis at level=10
 #             (single-axis push only — the new design doesn't mix axes the
 #             way the old 4-D chemical vectors did; the column IS the axis)
 # rebound   : None, or {"delay", "fraction", "target_axis"} — see
 #             _maybe_schedule_rebound() / _fire_rebound()
-# ref       : biological reference system, comment-only (chosen per
-#             chemical_system_physiological_effects.md)
+# ref       : biological reference system, comment-only
 
 MATRIX_MODES = {
 
@@ -246,17 +243,16 @@ def get_emotion_label(category: str, axis: str, distance: float, quadrant_positi
 # ── DEFAULT GAINS ────────────────────────────────────────────────────────────
 # 5/10 on every cell → multiplier (0.5 + 5/10) = 1.0 → raw axis magnitude
 # decides the winner, unchanged. Real per-character gains come later from the
-# 16-question questionnaire (chemical_system_docs/chemical_system_axis_gain_*.md);
-# character/injector.py already has a hook (`chemical_gains` in character.json)
-# to set these once that questionnaire exists.
+# 16-question questionnaire; character/injector.py already has a hook
+# (`chemical_gains` in character.json) to set these once that questionnaire
+# exists.
 DEFAULT_GAINS = {cat: {axis: 5.0 for axis in AXES} for cat in CATEGORIES}
 
 # ── LEGACY COMPATIBILITY ─────────────────────────────────────────────────────
 # Old hand-authored triggers (db/db_concepts.py "related" tags, and
 # motors/internal_somatic.py's reflex releases) still say "adrenaline",
 # "cortisol", etc. Route those names into the mode(s) that now cover that
-# same physiological reference, per chemical_system_physiological_effects.md,
-# so nothing upstream needs to be rewritten.
+# same physiological reference, so nothing upstream needs to be rewritten.
 LEGACY_TRIGGER_TO_MODES = {
     "adrenaline":     ["attack", "flee"],
     "noradrenaline":  ["attack", "flee"],
@@ -308,7 +304,7 @@ def legacy_level(levels: dict, legacy_name: str) -> float:
 # longer release effective modulators" (HPA-axis depletion, Selye 1956). Before this, nothing limited
 # release: every input -- calm ones too -- added final/20 to a mode (breeze ~6.7, birds ~8.75 of a max
 # of 10), the modes sat near their maximum, their push held the somatic engine up, and the engine
-# never came back down (see MEMORY_VS_PAPER.md, finding E).
+# never came back down.
 #
 # Two parts, both in release_from_axis_push:
 #   1. RESERVE: every release spends a shared reserve (1.0 = full) and the reserve refills slowly in
@@ -323,7 +319,7 @@ DEPLETION_INTERNAL     = False        # also apply the reserve to release() (int
                                       # character drifts to D~100 (heart rate -> 180 bpm), but spending the
                                       # reserve on the internal motor's small releases did not stop it (the
                                       # loop is driven by the +3 bpm/cycle of "viable-localized" and the x7
-                                      # adrenaline weight, see MEMORY_VS_PAPER.md finding F).
+                                      # adrenaline weight).
 RESERVE_CAPACITY       = 10.0 / 3.0   # release "units" that empty a full reserve (experimental value)
 RESERVE_REGEN_PER_CYCLE = 0.06        # reserve refilled per cycle (experimental value)
 _SATURATED_LABELS      = ("saturated", "collapse")

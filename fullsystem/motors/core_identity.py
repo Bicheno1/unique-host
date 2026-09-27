@@ -161,6 +161,17 @@ ANCHOR_FEED    = 0.06   # light push per cycle while it is not attacked
 ANCHOR_SHATTER = 3.0    # strong downward push when it is attacked
 SHAKEN_COOLDOWN = 8     # cycles without feed after an attack, before feeding again
 
+# Extra push into the Primary Evaluator's raw vectors when an anchor is
+# attacked (someone/something the character is bonded to, not the character
+# itself, is being harmed). This is on top of the ANCHOR_SHATTER hit to the
+# vitality stat -- that stat crashing is invisible to the response matrix,
+# so without this push "my companion is dying" and "a random stranger is
+# dying" would classify identically. Values are somatic I / mental A only:
+# a threat to someone you value should register as unambiguous danger, not
+# as an unclassifiable/local-viability event.
+ANCHOR_ATTACK_PUSH_SOMATIC = {"V": 0, "I": 40, "Lv": 6, "Gv": 0}
+ANCHOR_ATTACK_PUSH_MENTAL  = {"P": 0, "A": 36, "Er": 6, "Rr": 0}
+
 
 class IdentityAnchorSystem:
     """Sustains or shakes purpose/security/company/structure depending on whether the
@@ -175,14 +186,22 @@ class IdentityAnchorSystem:
     def set_anchors(self, anchors: list):
         self.anchors = anchors or []
 
-    def tick(self, concept_names: list, vitality):
+    def tick(self, concept_names: list, vitality) -> list:
         """
         concept_names : active concepts this cycle (already resolved)
         vitality      : instance of motors.vitality_stats.VitalityStats
+
+        Returns the list of anchor concepts that were ATTACKED this cycle
+        (concept co-occurred with a THREAT_MARKER). Callers use this to feed
+        an extra push into the Primary Evaluator (see ANCHOR_ATTACK_PUSH
+        below) — the vitality-stat hit and the danger-classification push
+        are two separate effects of the same event, not one standing in
+        for the other.
         """
         self._cycle += 1
+        attacked_concepts = []
         if not self.anchors:
-            return
+            return attacked_concepts
         cs = set(concept_names or [])
         vs = vitality._vs
 
@@ -196,9 +215,12 @@ class IdentityAnchorSystem:
             if attacked:
                 vs._apply_delta(stat, -ANCHOR_SHATTER)
                 self._shaken_until[concept] = self._cycle + SHAKEN_COOLDOWN
+                attacked_concepts.append(concept)
                 continue
 
             if self._shaken_until.get(concept, 0) > self._cycle:
                 continue  # still shaken -- does not feed until the cooldown passes
 
             vs._apply_delta(stat, ANCHOR_FEED)
+
+        return attacked_concepts

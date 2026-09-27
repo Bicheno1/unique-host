@@ -4,6 +4,13 @@ spacy
 nltk
 lemminflect
 
-# One-time setup after installing:
+# Only relevant on Hugging Face's free "ZeroGPU" Space hardware tier (see the comment
+# in displayer/app.py) — harmless everywhere else, including a normal local install.
+spaces
+
+# Hugging Face Spaces only runs `pip install -r requirements.txt` (no extra shell steps),
+# so the spaCy English model is installed directly from its release wheel here.
+# For a normal local install, the two commands below (kept for reference) do the same job:
 #   python -m spacy download en_core_web_sm
 #   python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl

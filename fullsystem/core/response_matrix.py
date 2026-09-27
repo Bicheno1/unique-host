@@ -388,11 +388,6 @@ def select_axis_response(axis: str, category: str, character_name: str = None,
     # capitalization) instead of being read as a common noun.
     known_names = {n.lower(): n for n in (character_name, forced_focus, *(extra_known_names or ())) if n}
     parsed = analyze_input(raw_text, character_name, known_names) if raw_text else {"subject": None, "constructions": []}
-    # WHO/WHAT the reply is about (2026-09-23): the TOPIC of the input when
-    # there is a clear one, the speaker otherwise -- see core/topic_target.py.
-    # Decided once here: the sentence AND the action line both read it.
-    # Safety net: if the new layer ever fails on an odd input, fall back to
-    # the previous rule (speaker pinned, else parsed subject) -- never crash a turn.
     try:
         from core.topic_target import pick_target
         subject, target_source = pick_target(parsed, forced_focus, character_name)
@@ -442,13 +437,6 @@ def select_axis_response(axis: str, category: str, character_name: str = None,
         sentence = template.format(pronoun=pronoun, pronoun_lower=pronoun_lower,
                                     verb=verb_phrase(verb), focus=subject)
 
-    # CONSTRUCTION FRAME (2026-09-23): the grammatical construction of the
-    # INPUT shapes the form of the reply (question -> answers/deflects,
-    # order -> complies/refuses, "If X, ..." -> built around X, "X is
-    # [adj]" -> picks up the adjective...). The core sentence above (what
-    # the winning MODE does) is never replaced, only framed -- see
-    # core/construction_frames.py for why the 2026-09-10 tone-mismatch
-    # problem cannot come back (frames are keyed by the mode's stance).
     core_sentence = sentence
     frame_family = None
     if sentence and not reflected and parsed.get("doc") is not None:

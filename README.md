@@ -1,9 +1,9 @@
-# Unique Host
+# 🧠 Unique Host
 
-> **Work in progress — v0.2.** Early experimental release; expect bugs. English only.
+> **Work in progress — v0.3.** Early experimental release; expect bugs. English only.
 
-**Meet Unique Host!** An experimental system designed specifically for roleplay.
-Create a character, give them a world, and start playing.
+**Meet Unique Host! 👋** An experimental system designed specifically for roleplay.
+Create a character, give them a world, and start playing. 🎭
 
 Your character can remember what happens during the adventure, keep their identity,
 experience things, develop their internal state, and use that history in future interactions.
@@ -17,7 +17,44 @@ what you write shapes how the reply is built (a question is answered, an order i
 an "If X, ..." is echoed) and the reply is about the topic you mention ("watch the noise"), not always about
 whoever is speaking.
 
-## What's new in v0.2
+## ✨ What's new in v0.3
+
+- **Danger no longer gets misclassified as "unclassifiable."** A whole family of somatic/mental tags
+  (`adrenaline`, `muscle_tension`, `noradrenaline`, `hostile_contact`, `vital_threat`, `cortisol`,
+  `terror`, `cognitive_threat`, `seek_exit`, `traumatic_memory`, `hypervigilance`, `overflow`,
+  `mortality`, and more) had their scope/ambiguity component (`Lv`/`Er`) calibrated *higher* than
+  their danger component (`I`/`A`) — so a scene with a monster attacking someone, or a character
+  dying, would almost always read as vague/ambiguous instead of dangerous, and the character would
+  freeze in a flat "suppress" reaction no matter how severe things got. These are now recalibrated so
+  genuine danger reads as danger.
+- **`flight_burst`** (the character's *own* escape-movement tag) was wrongly folded into the
+  templates that describe an external threat's *own* danger level (`creature`, `violence`, `mortal`,
+  `hazard` in `db_danger.py`) — conflating "how dangerous is this thing" with "my body is moving to
+  get away from it." It's been removed from those templates.
+- **New: Calibration System** (`systems/calibration_system.py`). Any concept that is a trackable
+  entity (a named companion, a monster, a person — type `subject` with a real baseline) now keeps its
+  own running position, updated only when something grammatically happens *to* it this turn (it's the
+  object/passive-subject of an action, or the subject of an inherently harmful verb — "the monster
+  attacks Joaquin", "Joaquin is attacked", "the monster dies"). An entity that is merely present, or is
+  the one *doing* the acting, is unaffected. This is what lets a companion in danger read differently
+  from a random threat, and lets a threat itself dying read as relief rather than more danger — see the
+  module docstring for the exact same-sign-cancels / opposite-sign-adds rule.
+- **Identity anchors** (a character's named "valued bond," "purpose," etc. from the questionnaire) now
+  have a real baseline (`loved_person`) instead of pushing nothing at all, and a bonded person always
+  wins scene "focus" over an unrelated noun that merely appears earlier in the sentence.
+- **"I love you" (and `anger`, `joy`, `sadness`, `fear`, `hope`, `gratitude`, `surprise`, `shame`,
+  `pride`... — the whole basic emotion vocabulary) now gets a real reaction.** An audit found 57 of the
+  64 words in the lexicon's "emotion" category pushed nothing at all, positive or negative — only
+  violence/threat-adjacent words worked. New: `db/db_emotion.py` (mirrors `db_danger.py`'s own
+  template + inflection mechanism) reuses already-calibrated tags (`joy`, `sadness`, `affection`,
+  `trust`, `curiosity`, `identity`, `anticipation`...) to make them reachable from the plain words
+  people actually use to name a feeling.
+- **Known remaining gap:** a single word's push can still be too weak, on its own, to override the
+  engine's existing resting state within one turn (a monster or a strong feeling needs a couple of
+  turns, or backup from the actual event verb, to fully register) — this is a deeper state-accumulation
+  question, not a calibration bug, and is being tracked separately.
+
+## 🆕 What's new in v0.2
 
 - **A character now remembers plain scene facts, not just fear/comfort events.** Every turn is logged in a
   short conversational window; every few turns it folds into short-term memory instead of being lost the moment
@@ -45,7 +82,7 @@ Memory of events formed during play is still partial and still depends on the ch
 limitations) — this release widens what a plain conversation keeps track of; it does not change how or when an
 emotional episode (fear, threat) closes and is filed away.
 
-## Quick start
+## 🚀 Quick start
 
 ```bash
 pip install -r requirements.txt
@@ -72,9 +109,9 @@ python displayer/app.py
    `Do you remember the monster?`, `Do you remember yesterday?`, `What do you think about me?`,
    `Did you see the monster?`, or claim something (`You liked the monster.`) and the character checks it against
    what it stored.
-5. **Export session snapshot** to resume later.
+5. **Export session snapshot** 💾 to resume later.
 
-## What it looks like
+## 🎬 What it looks like
 
 A real, unedited run (fixed random seed 1, generated on 2026-09-24 with the current code) with
 `fullcompiler/characters/delia_adventurer_v4.json`, playing as Joaquin, in the engine's
@@ -143,7 +180,7 @@ delia > "fine" Bad things happen around us, but I still count on you. <<thinking
 It answers in about 15 ms per message on a laptop, with no GPU and no API. Try the same script with
 `joaquin_adventurer_v2.json`: a friendlier character reacts differently to the same scenes.
 
-## How replies are shaped
+## 🧩 How replies are shaped
 
 The winning mode decides *what* the character does; the words you wrote decide *how the reply is built* and
 *what it is about*. Real output from the same Delia (playing as Joaquin, fixed seed 11; wording varies):
@@ -168,7 +205,7 @@ delia > "guarded" Dead? Not that question. I swallow the urge to react to the ba
   `USE_TOPIC_TARGET` in `fullsystem/core/topic_target.py`. If either fails on an odd input, the reply falls back
   to the previous behavior instead of crashing.
 
-## Layout
+## 🗂️ Layout
 
 ```
 displayer/   Gradio interface (no engine logic)
@@ -177,7 +214,7 @@ fullsystem/     CCM engine, databases, character loader, tests
 ```
 The three folders must stay side by side. See each folder's README for details.
 
-## Known limitations (v0.2)
+## ⚠️ Known limitations (v0.2)
 
 Works best with **short, simple, roleplay-style messages — one idea per message**, in **English only**.
 Memory of plain scene facts and short exchanges now reaches short-term memory as a matter of course (new in
@@ -185,13 +222,9 @@ v0.2); a dedicated emotional episode (fear, threat) still only closes and files 
 returns to rest, and how easily that happens still depends on the character. Replies come from closed phrase
 banks, so the same wording can come back for different inputs.
 
-**Grief, loss and betrayal don't have a reaction of their own yet.** v0.2 stops the reply from being outright
-nonsensical on these scenes (see above), but the character still doesn't withdraw or grieve as such — it
-resolves the scene on its own dominant personality trait, same as any other negative event, which can still
-read as distant or oddly composed for something like a death or a betrayal. A real "loss" reaction is a
-design decision still being worked out.
+To know more, read **[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)**.
 
-## Tests
+## ✅ Tests
 
 ```bash
 cd fullsystem     && python tests/test_lexicon_homonyms.py && python tests/test_contradiction.py && python tests/test_response_bank.py && python tests/test_memory_recall.py && python tests/test_memory_claims.py && python tests/test_memory_tiers.py && python tests/test_chemical_depletion.py && python tests/test_memory_threat.py && python tests/test_danger_tags.py && python tests/test_state_reset.py && python tests/test_context_window.py && python tests/test_speakers.py && python tests/test_message_fields.py && python tests/test_action_bank.py && python tests/test_construction_frames.py && python tests/test_topic_target.py && python tests/test_robustness.py
@@ -201,11 +234,19 @@ cd ../fullcompiler && python test_compiler.py
 `characters/delia_answers.json`; the shipped file is named `delia_answers_v4.json`) — a pre-existing,
 one-line mismatch, not something introduced in v0.2.
 
-## Feedback
+## 💬 Feedback
 
-Try it, break it, and tell me what you find: open a GitHub Issue with what you sent and what you expected,
+Try it, break it, and tell me what you find 🙌: open a GitHub Issue with what you sent and what you expected,
 or email Akimsa3@proton.me.
 
-## License
+## 📄 Citation
+
+Unique Host is built on the **Cognitive Coherence Model (CCM)**, described in the accompanying paper:
+
+> Cognitive Coherence Model (CCM). Zenodo. [https://doi.org/10.5281/zenodo.20648800](https://doi.org/10.5281/zenodo.20648800)
+
+If you use this project or the CCM architecture in your own work, please cite the paper above.
+
+## 📜 License
 
 [PolyForm Noncommercial 1.0.0](LICENSE). Commercial use requires a separate license: Akimsa3@proton.me

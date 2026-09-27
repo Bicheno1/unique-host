@@ -56,6 +56,8 @@ class CycleManagerV5:
         # Stats systems
         self.vitality   = VitalityStats()
         self.identity_anchor_system = IdentityAnchorSystem()
+        from systems.calibration_system import CalibrationSystem
+        self.calibration_system = CalibrationSystem()
         from motors.internal_mental import MentalEvocation
         self.mind_evocation = MentalEvocation()
 
@@ -285,14 +287,46 @@ class CycleManagerV5:
                                   "phrase": self._last_claim["phrase"],
                                   "subject_label": self._last_claim["subject"], "action_label": None}
 
+        # Calibration System (systems/calibration_system.py): only pulled
+        # in for a concept that is BOTH a trackable ENTITY (type "subject"
+        # with a real baseline -- monster, a companion, a priest...) AND
+        # grammatically AFFECTED this turn (the object/passive-subject of
+        # an action, or the subject of an inherently harmful verb/adjective
+        # -- "the monster ATTACKS Joaquin", "JOAQUIN is attacked", "the
+        # MONSTER dies"). An entity that is merely present or is the AGENT
+        # doing the acting ("a monster appeared", "the monster attacks
+        # Joaquin" -- monster itself here) stays OUT of calibration and
+        # contributes through the normal focus/semi-focus blend below,
+        # same as any other concept -- calibration is the exception, not
+        # the default path, for every entity every turn.
+        import db.db_concepts as _db_concepts
+        from systems.calibration_system import find_affected_entities
+        affected_this_turn = find_affected_entities(raw_text, _db_concepts.CONCEPTS)
+        entity_names_all = [n for n in (concept_names or [])
+                            if self.calibration_system.is_entity(n, _db_concepts.CONCEPTS)]
+        entity_names = [n for n in entity_names_all if n in affected_this_turn]
+        event_names  = [n for n in (concept_names or []) if n not in entity_names]
+        # The vector used to CALIBRATE an affected entity must reflect the
+        # ACTION alone, not be re-diluted by whichever AGENT performed it
+        # ("God kills Joaquin" -- if "God"'s own (unaffected, majestic/
+        # warm-by-default) baseline is left competing for focus against
+        # "kill", it can win focus outright by type priority and wash out
+        # "kill"'s real, correctly-calibrated danger signature before it
+        # ever reaches Joaquin. So calibration reads a SEPARATE vector
+        # built from everything that is not ANY entity at all -- agent
+        # included -- while the scene's own overall vec_s (below) still
+        # includes the agent normally, since "a god is out there killing
+        # people" legitimately colors Delia's own reading of the scene too.
+        pure_event_names = [n for n in (concept_names or []) if n not in entity_names_all]
+
         # Pre-input semantic → vectors for both external motors
         # Somatic weight comes mainly from the <<action>> fragment;
         # mental weight comes mainly from "emotion" + dialogue.
         # TODO: split concept_names by originating fragment
         # once the Format Matcher assigns per-slot weighting.
         from core.pre_input import pre_input_somatic, pre_input_mental
-        vec_s = pre_input_somatic(concept_names, memory=self.memory_s) if concept_names else None
-        vec_m = pre_input_mental(concept_names,  memory=self.memory_m) if concept_names else None
+        vec_s = pre_input_somatic(event_names, memory=self.memory_s) if event_names else None
+        vec_m = pre_input_mental(event_names,  memory=self.memory_m) if event_names else None
 
         # Lexicon bridge — real (not hand-authored-concept) words with
         # actual axis signal (see core/lexicon_bridge.py docstring for
@@ -313,6 +347,30 @@ class CycleManagerV5:
         # Internal activations from the graph → chemicals
         from db.db_concepts import get_internal_activations
         somatic_acts, mental_acts = get_internal_activations(concept_names) if concept_names else ({}, {})
+
+        # Calibration System — apply the PURE event (built from
+        # pure_event_names above, i.e. with every entity -- agent included
+        # -- excluded) to every affected entity present this cycle, and
+        # fold the calibrated delta back in. Runs BEFORE the tag scaler
+        # (step 1.5) so it's part of vec_s/vec_m from the start, like any
+        # other input, and is counted in _raw_s/_raw_m below (the memory
+        # system's threat signal).
+        if entity_names:
+            pure_event_s = pre_input_somatic(pure_event_names, memory=self.memory_s) if pure_event_names else {}
+            pure_event_m = pre_input_mental(pure_event_names,  memory=self.memory_m) if pure_event_names else {}
+            calib_s, calib_m = self.calibration_system.apply_event(
+                entity_names, pure_event_s or {}, pure_event_m or {}, _db_concepts.CONCEPTS)
+            if any(calib_s.values()):
+                vec_s = {k: (vec_s or {}).get(k, 0.0) + calib_s.get(k, 0.0) for k in SOMATIC_KEYS}
+            if any(calib_m.values()):
+                vec_m = {k: (vec_m or {}).get(k, 0.0) + calib_m.get(k, 0.0) for k in MENTAL_KEYS}
+
+        # Identity anchors — the vitality-stat side effect (ANCHOR_SHATTER
+        # on e.g. the "company" stat) is separate from the danger-push
+        # above: a tracked anchor concept feeds the Calibration System via
+        # entity_names/is_entity now, but the character's own subjective
+        # "is my bond with them shaken" stat still needs its own tick.
+        self.identity_anchor_system.tick(concept_names, self.vitality)
 
         # ── STEP 1.5: TAG SCALER ──────────────────────────────
         # Scales the vector according to current engine distance.
@@ -347,7 +405,6 @@ class CycleManagerV5:
 
         # ── step 3: VITALITY TICK ──────────────────────────────
         self.vitality.tick(active_concepts=concept_names)
-        self.identity_anchor_system.tick(concept_names, self.vitality)
         vital_s, vital_m = self.vitality.get_pressure()
 
         # ── STEP 4: CHEMICALS + MENTAL STATES ────────────────────
@@ -667,27 +724,6 @@ class CycleManagerV5:
             quadrant_positive=_quadrant_positive,
         )
 
-        # ── IDENTITY — checked before the 16-cell matrix ────────────────
-        # BUG FIX (found 2026-09-0X while testing memory/identity recall):
-        # output/phrase_builder.py:build_phrase is the ONLY code that
-        # answers identity questions ("what's your name?" -> "I am
-        # <name>") using the character's injected core_identity_rules
-        # (character/injector.py -> motors/core_identity.py CORE_RULES).
-        # It used to run first (see output/output_layer.py:generate_output,
-        # comment "# Identity first"), but the session wired
-        # select_axis_response as the live verbal source and never
-        # ported that priority over -- identity questions silently fell
-        # through to the construction matcher instead, which has no
-        # concept of "identity" at all and produced nonsense (confirmed:
-        # asking an injected "Delia" character her name returned "They/It
-        # ignore name." instead of "I am Delia", even though
-        # build_phrase called directly on the same state already
-        # returned the right answer -- the identity DATA and its
-        # memory-tier lookup were never broken, only the wiring was).
-        # Kept as a short-circuit ahead of the matrix, matching the
-        # original priority, rather than folded into RESPONSE_MATRIX --
-        # identity recall isn't a category/axis cell, it's a direct
-        # lookup against CORE_RULES.
         from output.phrase_builder import build_phrase, build_contradiction_phrase
         identity_phrase = build_phrase(self._last_concepts, core_active, m_dist,
                                         current_mode=response["verb"]) if self._last_concepts else None
@@ -789,36 +825,6 @@ class CycleManagerV5:
         if vitality_message:
             verbal = f"{verbal} {vitality_message}"
 
-        # ── MARKED OUTPUT — mirrors the input contract (the system-state notes
-        # "in like this, out like this") ─────────────────────────────
-        # Fix: the action fragment used to be built from
-        # output/output_layer.py's biomechanical step tables
-        # ("orient_body_toward_target, project_weight_forward..."), which
-        # read nothing like a real action line ("pointing at the
-        # monster"). Reworked to a simpler design: reuse the
-        # SAME verb+focus the matrix already picked for the dialogue
-        # (response["verb"]/response["subject"] -- includes the speaker
-        # selector's forced_focus when this turn was addressed at a
-        # named speaker rather than narrated as a world event).
-        #
-        # 2026-09-21: that "simpler design" was ALSO the whole design --
-        # every single turn in a given mode produced the exact same
-        # gerund of the exact same verb ("suppress" -> always
-        # "suppressing {subject}", "accept" -> always "accepting
-        # {subject}"), which read as flat and repetitive over a long
-        # scene the same way the pre-response_bank dialogue lines did
-        # (see that file's header). Now tries core/action_bank.py first
-        # -- same per-mode variant bank + personality/state weighting +
-        # anti-repetition machinery as core/response_bank.py, just with
-        # gestures/synonyms instead of sentences ("accept" can land on
-        # "thanking {subject}", "nodding to {subject}", "welcoming
-        # {subject}"...; "attack" on "slaying {subject}", "tearing into
-        # {subject}"...). Falls back to the old plain-gerund-via-
-        # lemminflect construction (with VERB_PREPOSITIONS for the 6
-        # verbs that need one -- "cooperating with", "signaling to
-        # user") only if the mode has no entry in ACTION_BANK, so
-        # nothing can regress to broken output.
-        # the "user" speaker is the player: name them in the action line (*accepting Marta*), or "you"
         _action_subject = response['subject']
         if str(_action_subject).lower() == "user":
             _action_subject = self.user_name or "you"

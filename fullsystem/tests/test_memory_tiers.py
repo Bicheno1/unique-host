@@ -13,11 +13,21 @@ def sizes(c):
 
 
 def test_short_to_medium_at_3_reps():
-    c = new_ccm(user=None)
-    live_event(c, ["monster", "forest"]); live_event(c, ["monster", "forest"])
-    assert sizes(c) == (1, 0, 0)
-    live_event(c, ["monster", "forest"])
-    assert sizes(c) == (1, 1, 0) and c.memory_m.medium_term[0]["reps"] == 3
+    # This is a threshold test for the arc/repetition escalation specifically. It disables the context
+    # window flush (see systems/memory_system.py CONTEXT WINDOW) because 3 live_event() calls is exactly
+    # CONTEXT_FLUSH_TURNS worth of update() calls and would add an unrelated short-term "context" entry
+    # for the same concepts, which is correct in real play but not what this test is about. The context
+    # flush itself is covered in test_memory_recall.py.
+    old = ms.CONTEXT_FLUSH_ENABLED
+    ms.CONTEXT_FLUSH_ENABLED = False
+    try:
+        c = new_ccm(user=None)
+        live_event(c, ["monster", "forest"]); live_event(c, ["monster", "forest"])
+        assert sizes(c) == (1, 0, 0)
+        live_event(c, ["monster", "forest"])
+        assert sizes(c) == (1, 1, 0) and c.memory_m.medium_term[0]["reps"] == 3
+    finally:
+        ms.CONTEXT_FLUSH_ENABLED = old
 
 
 def test_medium_to_long_at_10_reps_once():

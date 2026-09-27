@@ -1,34 +1,3 @@
-# core/topic_target.py — UNIQUE HOST
-#
-# WHO OR WHAT THE REPLY IS ABOUT: the TOPIC of what was said, not always
-# the speaker.
-# ══════════════════════════════════════════════════════════════
-# WHY (author's report, 2026-09-23): with the "You" speaker (or any named
-# speaker) the target of the reaction was pinned to the speaker for EVERY
-# input (`subject = forced_focus or parsed_subject`, added 2026-09-09).
-# Measured: in 137 of 144 replies to questions the core said "you", even
-# when the question was about a noise or about "him" -- "What is that
-# noise?" -> "We keep still and watch you."
-#
-# WHY IT WAS PINNED, AND WHAT THIS KEEPS: the 2026-09-09 fix (see
-# construction_matcher.make_why_question docstring) made sentence and
-# action line agree on ONE subject, because they used to talk about two
-# different things. That still holds: both read response["subject"], which
-# is decided once, here.
-#
-# RULE (speaker turns; narrator turns never pin a focus, so they only get
-# the passive-agent and vague-noun fixes of rules 1 and 3):
-#   1. Passive input -> the AGENT is the topic ("The door was broken by the
-#      bandit" -> the bandit), because extract_subject() returns the
-#      grammatical subject, which in a passive is the thing acted on.
-#   2. Otherwise the subject extract_subject() found.
-#   3. If that is empty, a pronoun, a vague noun ("the way", "the thing") or
-#      the reacting character herself -> the SPEAKER, as before.
-#      ("Do you know him?", "Run!", "Hello there.", "I love you.")
-#
-# WHAT IT DOES NOT TOUCH: who is "present" for memory, identity answers,
-# and the reflective questions of `investigate` (they read forced_focus in
-# select_axis_response, not the subject).
 
 USE_TOPIC_TARGET = True   # False -> the speaker is always the target (previous behavior)
 

@@ -233,17 +233,6 @@ ACTION_BANK = {
 }
 
 
-# Variants that are inherently a gesture DIRECTED AT SOMEONE -- you can
-# thank, nod to, smile at, beam at, embrace, shake hands with, or open up to
-# a PERSON, never a place or a plan. When `subject` comes in as "that" (a
-# non-biological topic already downgraded upstream -- see
-# core/topic_target.py's to_display_subject), these specific variants
-# redirect at whoever is actually there to receive the gesture (the current
-# speaker) instead of literally formatting "thanking that".
-# 2026-09-26 (author's report): "You wanna go to the market?" -> mode
-# "accept" -> "thanking the market". Fixed in two parts: the market is now
-# "that" by the time it gets here (upstream fix), and gestures in this set
-# go to the speaker instead of "that" ("thanking Joaquin").
 _REQUIRES_PERSON_PREFIXES = (
     "welcoming", "nodding to", "smiling at", "thanking", "beaming at",
     "embracing", "shaking hands with", "opening up to",

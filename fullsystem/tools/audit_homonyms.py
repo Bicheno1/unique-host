@@ -1,8 +1,8 @@
 # tools/audit_homonyms.py — UNIQUE HOST
 #
 # Bounded sweep of HOMONYMS in db/db_lexicon.py (pending #1 of
-# the session-state notes). It modifies nothing: it writes a report
-# HOMONYMS_TO_REVIEW.md for review, to decide which to fix in
+# the session-state notes). It modifies nothing: it writes a review report
+# to decide which to fix in
 # db/db_lexicon_overrides.py.
 #
 # Usage (from the project root):   python tools/audit_homonyms.py

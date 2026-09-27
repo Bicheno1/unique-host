@@ -17,6 +17,23 @@
 # The activation count is global — if adrenaline appears 3 times → x3.
 
 CONCEPTS = {
+    # "love" as a standalone word ("I love you") had NO top-level entry --
+    # only a same-named SENSE nested under the example concept "angelo"
+    # (further down), which only ever fires when "angelo" itself is the
+    # focus. Any other use of the word ("I love you", "do you love me?")
+    # fell through resolve_concept()'s LEXICON fallback with an EMPTY
+    # related (see that function's docstring) -- Delia had no reaction to
+    # it at all, positive or negative. Reuses the exact same tags already
+    # used for "angelo"'s "love" sense below, so this isn't new emotional
+    # calibration, just making the existing one reachable from the bare word.
+    "love": {
+        "sense": None, "type": "action", "subtype": "action",
+        "synonyms": ["love", "loves", "loved", "loving"],
+        "related": {
+            "self": {"somatic": ["oxytocin", "safe_presence", "safe_contact"],
+                      "mental":  ["affection", "trust", "relief"]},
+        },
+    },
 
     # ── ILLOGICAL ─────────────────────────────────────────────────────────────
     "ghost": {
@@ -27,7 +44,7 @@ CONCEPTS = {
         "related": {
             "self":         {"somatic": ["concept_ghost"],                   "mental": ["concept_ghost"]},
             "fear":         {"somatic": ["adrenaline", "cortisol"],          "mental": ["seek_light", "seek_person"]},
-            "danger":       {"somatic": ["adrenaline", "flight_burst"],             "mental": ["traumatic_memory"]},
+            "danger":       {"somatic": ["adrenaline", "hostile_contact"],             "mental": ["traumatic_memory"]},
             "supernatural": {"somatic": [],                                  "mental": ["disbelief", "denial"]},
             "defenseless":  {"somatic": ["paralysis", "muscle_tension"],   "mental": ["seek_exit"]},
         }
@@ -246,17 +263,6 @@ CONCEPTS = {
         }
     },
 
-    # ── STATUS ────────────────────────────────────────────────────────────────
-    # good/bad/mysterious added 2026-09-0X to test "X person asks your name"
-    # scenarios — judgment-of-a-person words, same static/universal tier as
-    # danger/safe/calm (see character/questionnaire.py's WORLD_GROUPS
-    # comment for why these stay static rather than going through
-    # character/valence.py: they're not "opinion of a thing", they're
-    # reaction triggers). "bad" mirrors danger's tags exactly (same proven
-    # attack/flee/surrender behavior); "good" mirrors safe's; "mysterious"
-    # is new — it deliberately does NOT carry fear/threat tags, only the
-    # new curiosity_pull tag (db/db_somatic.py, db/db_mental.py), so it
-    # reads as unresolved/unclassifiable rather than as danger.
     "good": {
         "sense":    "sight",
         "type":     "status",
@@ -927,3 +933,6 @@ def get_multiplier(focus_name, concept_names):
 # words that already carry a "related" are left alone.
 from db.db_danger import apply_danger as _apply_danger
 _apply_danger(CONCEPTS)
+
+from db.db_emotion import apply_emotion as _apply_emotion
+_apply_emotion(CONCEPTS)

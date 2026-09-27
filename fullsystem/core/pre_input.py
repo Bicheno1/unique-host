@@ -38,8 +38,19 @@ def _get_focus(concept_names, concepts_db):
             continue
         ctype   = c.get("type", "object")
         subtype = c.get("subtype", "")
-        type_score = PRIORITY.index(ctype) if ctype in PRIORITY else 999
-        sub_score  = STATUS_SUBTYPE_PRIORITY.index(subtype) if (ctype == "status" and subtype in STATUS_SUBTYPE_PRIORITY) else 999
+        if subtype == "anchor":
+            # A concept the character is personally bonded to (identity_anchors,
+            # e.g. a named companion from the "valued_bond" questionnaire
+            # answer) outweighs any other concept in the scene as focus,
+            # regardless of grammatical type or word order. A generic
+            # "monster" happening to appear earlier in the sentence than
+            # "Joaquin" should not make the monster the focus and dilute
+            # Joaquin to semi-focus (0.5 weight) -- to this character,
+            # a person they're bonded to is not equivalent to a random noun.
+            type_score, sub_score = -1, 0
+        else:
+            type_score = PRIORITY.index(ctype) if ctype in PRIORITY else 999
+            sub_score  = STATUS_SUBTYPE_PRIORITY.index(subtype) if (ctype == "status" and subtype in STATUS_SUBTYPE_PRIORITY) else 999
         if (type_score, sub_score) < best_score:
             best_score = (type_score, sub_score)
             best_name  = name

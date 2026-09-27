@@ -1,14 +1,14 @@
-# Unique Host v0.1 — Known limitations
+# Unique Host v0.2 — Known limitations
 
-Everything below was observed while assembling and testing the project on 2026-09-20
+Everything below was observed while assembling and testing the project
 (Python 3.12, Gradio 6.28, spaCy `en_core_web_sm` 3.8). "Measured" means it was run, not guessed.
 Nothing here is a crash: the app ran every test turn without errors.
 The reply-quality items (grammar of the input, who the reply is about) were re-measured and
-revised on 2026-09-23; ideas for going further are in **NATURALNESS_IDEAS.md**.
+revised since.
 
-## Recently fixed (2026-09-23)
+## Recently fixed
 
-Reported by the author: the character answered almost the same way whatever the grammar of the
+The character answered almost the same way whatever the grammar of the
 input, and reacted to the speaker no matter what was said. Numbers are from 576 generated replies.
 
 - **Replies ignored the grammar of the input.** The matcher detected 29 constructions (question,
@@ -19,7 +19,7 @@ input, and reacted to the speaker no matter what was said. Numbers are from 576 
   X, ..." builds the reply around X, "X is [adj]" picks up the adjective, and existential, passive,
   negation and hypothetical input get their own openers. The mode still decides *what* the
   character does, and frames are keyed by the mode's stance (urgent / open / closed / unsure), so
-  the tone cannot contradict it (the 2026-09-10 problem).
+  the tone cannot contradict it (a previously reported problem).
 - **The reply targeted the speaker on every turn.** 137 of 144 replies to questions said "you"
   ("What is that noise?" -> "We keep still and watch you"). Now the target is the topic of the
   input when there is a clear one ("...watch the noise") and the speaker only otherwise
@@ -63,13 +63,13 @@ What was measured, using Delia v3, Joaquin v1 and a test character:
 | **Seeded memories** (`core_fear`, `core_comfort`) | Yes | They are stored as nuclear memories at load and are looked up whenever their word appears. |
 | **Recall when a word comes back** (`_memory_vector`) | Yes | If the current focus word is in a stored event, that event adds a push to the reaction. |
 | **Saving new events during play** | **Does not work for the tested real characters** | An event is saved only when the engine "returns to baseline" (mental < 11, somatic < 22, on the raw state). Those thresholds fit the neutral default character; the real ones rest higher (Delia v3 21/21, Joaquin 26/16 somatic/mental), so events never close (the numbers predate the current metrics; see finding A, with a table of rest levels). In 11+ calm turns after a bandit attack, nothing was stored for Delia or Joaquin. See `MEMORY_VS_PAPER.md`. |
-| **Chemical push / rest** | Improved 2026-09-20 | The chemical push kept the somatic engine up (modes re-released by every input, no depletion). A release reserve + saturation block was added (`DEPLETION_ENABLED`, experimental numbers). Joaquin now settles and stores events; Delia and Mirela barely change. The stored events are the most intense inputs, which for them are pleasant calm phrases, not the bandit scene (finding E in `MEMORY_VS_PAPER.md`). |
-| **Event selection (inviability / absence)** | Implemented 2026-09-20 | Threat events are chosen by net inviability (I - V) / absence (A - P) of the raw input and close without the engine returning to rest (finding H). Since finding I, 128 danger words (+245 inflections) carry inviability tags and a character's seed no longer replaces them: with Delia, bandit / monster kills / fire / cage / ghost are stored and recalled. A friendlier character (Joaquin) reacts less, by design. Words outside `db/db_danger.py` still have no tags (e.g. "sword" is in, "siege" is not); the list is a first draft. |
+| **Chemical push / rest** | Improved | The chemical push kept the somatic engine up (modes re-released by every input, no depletion). A release reserve + saturation block was added (`DEPLETION_ENABLED`, experimental numbers). Joaquin now settles and stores events; Delia and Mirela barely change. The stored events are the most intense inputs, which for them are pleasant calm phrases, not the bandit scene (finding E in `MEMORY_VS_PAPER.md`). |
+| **Event selection (inviability / absence)** | Implemented | Threat events are chosen by net inviability (I - V) / absence (A - P) of the raw input and close without the engine returning to rest (finding H). Since finding I, 128 danger words (+245 inflections) carry inviability tags and a character's seed no longer replaces them: with Delia, bandit / monster kills / fire / cage / ghost are stored and recalled. A friendlier character (Joaquin) reacts less, by design. Words outside `db/db_danger.py` still have no tags (e.g. "sword" is in, "siege" is not); the list is a first draft. |
 | **Idle drift** | Open | With no input the somatic distance drifts up (heart-rate runaway in the resting quadrant, plus chemical/mental drift; finding F). |
-| **Opening System** | Changed 2026-09-20 | Maximum plasticity now needs a threat event in progress or closed in the last 15 cycles (`OPENING_REQUIRES_THREAT`); reactions change more slowly than before within a session. |
-| **Tier escalation** (short -> medium -> long) | Works since 2026-09-20 | Medium -> long was unreachable (fixed, tested). The same event must recur within 10 cycles to leave short-term, and it needs 3 repeats for medium and 10 for long. |
+| **Opening System** | Changed | Maximum plasticity now needs a threat event in progress or closed in the last 15 cycles (`OPENING_REQUIRES_THREAT`); reactions change more slowly than before within a session. |
+| **Tier escalation** (short -> medium -> long) | Works | Medium -> long was unreachable (fixed, tested). The same event must recur within 10 cycles to leave short-term, and it needs 3 repeats for medium and 10 for long. |
 | **Spontaneous recall** (`evoked`) | **Dormant** | Fires on unmet needs, not on threat as the paper describes; searches long-term memory only, with placeholder word lists that do not include `cage`/`road`. 0 recalls in 60 idle turns. The `evoked` list in the state is never filled (bug). |
-| **Memory shown in the text** | **Only when asked** | Since 2026-09-20 the character recalls on request and checks claims against memory (see "Memory recall and claims" below). It never volunteers a memory. |
+| **Memory shown in the text** | **Only when asked** | The character recalls on request and checks claims against memory (see "Memory recall and claims" below). It never volunteers a memory. |
 
 Why a character still reacts differently later in a session: **plasticity** (each word's valence
 drifts by about 0.25 per exposure, because the Opening rule `dist_mental < 30` is almost always
@@ -77,12 +77,12 @@ true), not stored memories. In one test, "a cage" after a
 cage scene gave a somatic distance of ~49 versus ~10 for a fresh character, with no new event saved.
 
 Also:
-- Session export/resume loads without errors, but vitality needs are not restored (TODO in `exporter.py`),
-  and I did not verify that a resumed character behaves the same as before.
+- Session export/resume loads without errors, but vitality needs are not restored (`exporter.py`),
+  and it is not verified that a resumed character behaves the same as before.
 - **Suggested wording for the launch text (until events close reliably):** "the character's state changes with what happens to
   them" is safe; "remembers what happened to them" is only true for seeded fears/comforts today.
 
-### Memory recall and claims (added 2026-09-20)
+### Memory recall and claims
 
 `core/memory_recall.py` and `core/memory_claims.py`; 19 tests in `tests/test_memory_recall.py`
 and `tests/test_memory_claims.py`. Enter your name in the **"Your name in the roleplay"** box so
@@ -114,7 +114,7 @@ Limits:
   strong reactions while you were present, including reactions to your own questions.
 - The contradiction with memory is not silenced by distress (unlike scene/identity contradictions);
   it is still dropped when the mental distance is 90 or more.
-- Wording of all recall templates is a first draft for the author to review.
+- Wording of all recall templates is a first draft.
 
 ## 3. Reactions and replies
 
@@ -132,9 +132,9 @@ Limits:
   is not answered (there is no `age` concept). Father/mother/pet answers are gated by the
   character's mode and may be withheld.
 - Replies come from closed phrase banks (85 mode phrases plus 158 frame phrases); wording and `lean`
-  tags are a draft to review. `layers/vitality_voice.py` phrases are still placeholders.
+  tags are a draft. `layers/vitality_voice.py` phrases are still placeholders.
 - With the default 16 modes, only 3–4 are reached by a flat character (engine, not phrases).
-- Ambiguous homonyms (bolt, heart, spike, spell, mark, bark) are decisions left to the author.
+- Ambiguous homonyms (bolt, heart, spike, spell, mark, bark) are still open decisions.
 - The somatic plateau that never returns to 0 is expected design, not a bug.
 
 - **Input the matcher does not recognise gets no frame** (plain "The bandit is here."). Existential,
@@ -190,8 +190,6 @@ Limits:
 - `core/input_formats.py` and `core/format_selector.py` are unfinished skeletons. The UI no longer
   uses them. Six modules have no importer (see SESSION_STATE §6); archive them only after checking.
 - `agent.py --viz` points to a `visualizer` module that does not exist.
-- Old characters made before the English rename may add duplicate concepts (`tu`, `donde`...).
-  Regenerate them with the compiler.
 - Loading a character replaces the previous one; the engine keeps its databases at module level,
   so **two people using one hosted copy at the same time would overwrite each other's character.**
   Fine locally; not safe for a public multi-user deployment.
@@ -203,11 +201,10 @@ Limits:
   was served and its functions called directly; it was not clicked through in a browser.
 - License: PolyForm Noncommercial 1.0.0 (unmodified text) with a `NOTICE`. The attribution terms
   of WordNet and `wordfreq`, which the lexicon was built from, were not reviewed.
-- The reporting channel in the README is still a placeholder.
 - The interface has a speaker selector (Narrator / You / any name); the default is Narrator. The engine names the speaker as the target of its reply only when the input has no clearer topic (see "Recently fixed"); a speaker is not a second host (one host per process).
 
 ## 7. Tests
 
 - Existing suites pass: robustness (5), topic target (7), construction frames (21), homonyms (6), contradiction (3), response bank (14), memory recall (11), speakers (10), message fields (8), memory claims (9), memory tiers (7), chemical depletion (7), memory threat (11), danger tags (8), compiler (19).
-- Not covered by any test: the injector reset, the phrase changes made on 2026-09-20, session
+- Not covered by any test: the injector reset, the phrase changes made since the initial release, session
   resume, the UI, and natural event closing during play.

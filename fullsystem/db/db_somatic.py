@@ -24,21 +24,15 @@ SOMATIC_BASE = {
 
 TAG_VALUES_SOMATIC = {
 
-    # ── judgment of others (2026-09-0X, for "good/bad/mysterious person") ──
-    # High Lv, low everywhere else -> lands the raw-push classifier
-    # (core/response_matrix.py::primary_evaluator_category_from_axis_push)
-    # on Lv/Er = "unclassifiable" (investigate), deliberately WITHOUT the
-    # fear/threat tags "bad" uses -- "mysterious" isn't scary by itself,
-    # just unresolved/ambiguous, so it shouldn't also read as danger.
     "curiosity_pull":     {"V":  4, "I":  4, "Lv": 30, "Gv":  4},
 
     # ── threat ────────────────────────────────────────────────────────────────
-    "adrenaline":        {"V":  6, "I": 28, "Lv": 32, "Gv":  4},  # flight activation burst
-    "muscle_tension":  {"V":  4, "I": 18, "Lv": 22, "Gv":  6},  # body on guard
-    "paralysis":         {"V":  1, "I": 38, "Lv": 35, "Gv":  3},  # total freeze
-    "flight_burst":             {"V": 32, "I": 10, "Lv": 38, "Gv":  5},  # escape movement
-    "dolor":             {"V":  0, "I": 30, "Lv": 38, "Gv":  2},  # acute physical pain
-    "sofocacion":        {"V":  2, "I": 34, "Lv": 28, "Gv":  8},  # shortness of breath
+    "adrenaline":        {"V":  6, "I": 34, "Lv": 22, "Gv":  4},  # flight activation burst
+    "muscle_tension":  {"V":  4, "I": 24, "Lv": 14, "Gv":  6},  # body on guard
+    "paralysis":         {"V":  1, "I": 42, "Lv": 24, "Gv":  3},  # total freeze
+    "flight_burst":             {"V": 32, "I": 10, "Lv": 38, "Gv":  5},  # escape movement (own body, NOT a danger-assessment tag — see db_danger.py note)
+    "dolor":             {"V":  0, "I": 36, "Lv": 22, "Gv":  2},  # acute physical pain
+    "sofocacion":        {"V":  2, "I": 38, "Lv": 20, "Gv":  8},  # shortness of breath
 
     # ── HOSTILE ENVIRONMENT ──────────────────────────────────────────────────
     "physical_darkness":{"V":  2, "I": 12, "Lv": 15, "Gv":  4},  # physical darkness
@@ -50,7 +44,7 @@ TAG_VALUES_SOMATIC = {
 
     # ── PRESENCE / CONTACT ────────────────────────────────────────────────────
     "safe_contact":      {"V": 22, "I":  2, "Lv":  8, "Gv": 26},  # affectionate touch
-    "hostile_contact":   {"V":  2, "I": 32, "Lv": 36, "Gv":  4},  # physical aggression
+    "hostile_contact":   {"V":  2, "I": 38, "Lv": 22, "Gv":  4},  # physical aggression
     "proximity":         {"V":  6, "I":  6, "Lv": 10, "Gv":  8},  # someone nearby
     "isolation":         {"V":  4, "I":  8, "Lv":  9, "Gv":  5},  # being alone
 
@@ -74,8 +68,8 @@ TAG_VALUES_SOMATIC = {
     "open_space_safe":   {"V": 20, "I":  2, "Lv":  8, "Gv": 22},  # opposite of enclosed_space
 
     # ── CHEMICALS ─────────────────────────────────────────────────────────────
-    "cortisol":          {"V":  3, "I": 22, "Lv": 20, "Gv":  6},  # sustained stress, inhibition
-    "noradrenaline":     {"V":  8, "I": 24, "Lv": 28, "Gv":  5},  # acute alert, scanning
+    "cortisol":          {"V":  3, "I": 26, "Lv": 14, "Gv":  6},  # sustained stress, inhibition
+    "noradrenaline":     {"V":  8, "I": 30, "Lv": 18, "Gv":  5},  # acute alert, scanning
     "dopamine":          {"V": 26, "I":  4, "Lv": 10, "Gv": 28},  # motivation, reward
     "endorphins":        {"V": 30, "I":  2, "Lv":  8, "Gv": 32},  # physical wellbeing, euphoria
 
@@ -107,14 +101,19 @@ TAG_VALUES_SOMATIC = {
     #   person  → moderate V/Gv (social bonding, attachment baseline)
     #   light   → moderate V/Lv (orientation, safety signal)
 
-    "concept_ghost":   {"V":  2, "I": 30, "Lv": 28, "Gv":  4},  # presence of the impossible — freeze
+    "concept_ghost":   {"V":  2, "I": 36, "Lv": 18, "Gv":  4},  # presence of the impossible — freeze
     "concept_dark":    {"V":  4, "I": 14, "Lv": 16, "Gv":  5},  # reduced visibility — vigilance
     "concept_room":    {"V":  6, "I":  6, "Lv": 10, "Gv":  8},  # enclosed space — mild containment
     "concept_person":  {"V": 20, "I":  3, "Lv":  8, "Gv": 22},  # human presence — attachment signal
     "concept_light":   {"V": 16, "I":  2, "Lv": 18, "Gv":  6},  # visible light — orientation/safety
 
+    # loved_person: a SPECIFIC valued bond (identity_anchors "self" branch,
+    # e.g. a named companion), not a generic person. Stronger V/Gv than
+    # concept_person -- see calibration reference above ("loved person").
+    "loved_person":    {"V": 24, "I":  2, "Lv":  6, "Gv": 28},
+
     # ── EXISTENTIAL ──────────────────────────────────────────────────────────
-    "vital_threat":     {"V":  0, "I": 40, "Lv": 42, "Gv":  6},  # death risk
-    "death_presence":   {"V":  1, "I": 24, "Lv": 18, "Gv": 26},  # corpse / nearby death
+    "vital_threat":     {"V":  0, "I": 46, "Lv": 24, "Gv":  6},  # death risk
+    "death_presence":   {"V":  1, "I": 32, "Lv": 12, "Gv": 26},  # corpse / nearby death
     "resource":          {"V": 20, "I":  0, "Lv": 24, "Gv":  4},  # resource control
 }
