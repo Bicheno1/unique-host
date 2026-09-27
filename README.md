@@ -113,6 +113,8 @@ python displayer/app.py
 
 ## 🎬 What it looks like
 
+![Chat screenshot](docs/images/chat-screenshot.png)
+
 A real, unedited run (fixed random seed 1, generated on 2026-09-24 with the current code) with
 `fullcompiler/characters/delia_adventurer_v4.json`, playing as Joaquin, in the engine's
 one-line syntax (in the app you would type these into the three boxes; wording varies between runs; it is a closed
@@ -214,11 +216,11 @@ fullsystem/     CCM engine, databases, character loader, tests
 ```
 The three folders must stay side by side. See each folder's README for details.
 
-## ⚠️ Known limitations (v0.2)
+## ⚠️ Known limitations (v0.3)
 
 Works best with **short, simple, roleplay-style messages — one idea per message**, in **English only**.
-Memory of plain scene facts and short exchanges now reaches short-term memory as a matter of course (new in
-v0.2); a dedicated emotional episode (fear, threat) still only closes and files itself away once the character
+Memory of plain scene facts and short exchanges now reaches short-term memory as a matter of course; a
+dedicated emotional episode (fear, threat) still only closes and files itself away once the character
 returns to rest, and how easily that happens still depends on the character. Replies come from closed phrase
 banks, so the same wording can come back for different inputs.
 
@@ -232,7 +234,7 @@ cd ../fullcompiler && python test_compiler.py
 ```
 `test_compiler.py` currently fails on a clean checkout regardless of the above (it looks for
 `characters/delia_answers.json`; the shipped file is named `delia_answers_v4.json`) — a pre-existing,
-one-line mismatch, not something introduced in v0.2.
+one-line mismatch, not something introduced recently.
 
 ## 💬 Feedback
 
