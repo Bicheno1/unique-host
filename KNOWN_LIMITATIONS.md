@@ -54,8 +54,7 @@ input, and reacted to the speaker no matter what was said. Numbers are from 576 
 - Unrecognised words are ignored. The lexicon has ~9,000 words; ~31% never reach a questionnaire
   question, so they carry no personal reaction.
 
-## 2. Memory (read this before promising "the character remembers")
-
+## 2. Memory
 What was measured, using Delia v3, Joaquin v1 and a test character:
 
 | Part of memory | Works? | Notes |
@@ -79,8 +78,6 @@ cage scene gave a somatic distance of ~49 versus ~10 for a fresh character, with
 Also:
 - Session export/resume loads without errors, but vitality needs are not restored (`exporter.py`),
   and it is not verified that a resumed character behaves the same as before.
-- **Suggested wording for the launch text (until events close reliably):** "the character's state changes with what happens to
-  them" is safe; "remembers what happened to them" is only true for seeded fears/comforts today.
 
 ### Memory recall and claims
 
